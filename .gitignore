@@ -5,4 +5,13 @@ coverage/
 .env
 .env.*
 !.env.example
+!.env.*.example
 .DS_Store
+
+# Prisma client is generated from apps/api/prisma/schema.prisma
+apps/api/generated/
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts

@@ -1,0 +1,24 @@
+{
+  "name": "@flowwave/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FlowWave API contract: OpenAPI document generated from the API, and TypeScript types generated from it.",
+  "type": "module",
+  "types": "./src/schema.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/schema.d.ts"
+    },
+    "./openapi.json": "./openapi.json"
+  },
+  "files": [
+    "openapi.json",
+    "src"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript openapi.json --output src/schema.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

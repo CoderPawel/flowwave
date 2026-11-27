@@ -48,14 +48,37 @@ export function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
-function localParts(instant: Date, timeZone: string): Record<string, number> {
-  const parts: Record<string, number> = {};
+interface LocalParts {
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly second: number;
+}
+
+function localParts(instant: Date, timeZone: string): LocalParts {
+  const parts = new Map<string, number>();
   for (const part of formatterFor(timeZone).formatToParts(instant)) {
     if (part.type !== 'literal') {
-      parts[part.type] = Number(part.value);
+      parts.set(part.type, Number(part.value));
     }
   }
-  return parts;
+  const read = (type: keyof LocalParts): number => {
+    const value = parts.get(type);
+    if (value === undefined || Number.isNaN(value)) {
+      throw new ValidationError('timeZone', `Could not resolve local ${type} in "${timeZone}".`);
+    }
+    return value;
+  };
+  return {
+    year: read('year'),
+    month: read('month'),
+    day: read('day'),
+    hour: read('hour'),
+    minute: read('minute'),
+    second: read('second'),
+  };
 }
 
 /** Offset in minutes of `timeZone` from UTC at `instant` (positive east of Greenwich). */
@@ -64,7 +87,7 @@ export function offsetMinutesAt(instant: Date, timeZone: string): number {
     throw new ValidationError('timeZone', `"${timeZone}" is not a valid IANA time zone.`);
   }
   const p = localParts(instant, timeZone);
-  const localAsUtc = Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!, p.second!);
+  const localAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
   const instantWholeSeconds = Math.floor(instant.getTime() / 1000) * 1000;
   return Math.round((localAsUtc - instantWholeSeconds) / 60_000);
 }
@@ -126,7 +149,7 @@ export function parseZonedTimestamp(value: unknown): ZonedTimestamp {
 /** Calendar date (`YYYY-MM-DD`) in the zone where the event happened. */
 export function localDateOf(timestamp: ZonedTimestamp): string {
   const p = localParts(new Date(timestamp.utc), timestamp.timeZone);
-  const pad = (n: number | undefined, width = 2): string => String(n).padStart(width, '0');
+  const pad = (n: number, width = 2): string => String(n).padStart(width, '0');
   return `${pad(p.year, 4)}-${pad(p.month)}-${pad(p.day)}`;
 }
 

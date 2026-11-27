@@ -5,19 +5,32 @@
   "description": "Privacy-first personal energy and focus rhythm application.",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.18"
   },
   "workspaces": [
-    "packages/*"
+    "packages/core",
+    "packages/analytics-engine",
+    "packages/contracts",
+    "apps/api",
+    "apps/web"
   ],
   "scripts": {
+    "generate": "npm run build -w @flowwave/core && npm run prisma:generate -w @flowwave/api",
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run generate && eslint . && npm run lint -w @flowwave/web",
+    "typecheck": "npm run generate && npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "contracts:generate": "npm run openapi:generate -w @flowwave/api && npm run generate -w @flowwave/contracts",
+    "contracts:check": "npm run contracts:generate && git diff --exit-code -- packages/contracts",
+    "dev:api": "npm run dev -w @flowwave/api",
+    "dev:web": "npm run dev -w @flowwave/web"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/node": "^22.20.7",
-    "typescript": "~5.9.3"
+    "eslint": "^9.39.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.74.0"
   }
 }

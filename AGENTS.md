@@ -35,7 +35,9 @@ These rules apply to every change, whether written by a person or an agent.
 
 ## Conventions
 
-- TypeScript, strict mode, ES modules. File names are `camelCase.ts`; tests live in `packages/<name>/test/<module>.test.ts`.
+- TypeScript, strict mode, ES modules. File names are `camelCase.ts`; tests live in `packages/<name>/test/<module>.test.ts` and `apps/api/test/<module>.test.ts` (the web panel keeps `<module>.test.ts` next to the module).
+- Flutter code in `apps/mobile` follows Dart conventions: `snake_case.dart` files under `lib/src/<feature>/`, tests under `test/`.
+- API routes are versioned under `/v1`; the OpenAPI contract in `packages/contracts` is generated, never edited by hand.
 - Domain errors extend `FlowWaveError` and carry a stable `code`.
 - SQL migrations live in `db/migrations` as `NNNN_description.up.sql` / `NNNN_description.down.sql`.
 - Architecture decisions live in `docs/architecture/NNNN-title.md` (see the index there).
@@ -43,6 +45,11 @@ These rules apply to every change, whether written by a person or an agent.
 ## Commands
 
 ```bash
-npm ci          # install pinned dev dependencies
-npm run check   # strict type check + unit tests
+npm ci                      # install pinned dependencies
+npm run check               # lint + strict type check + unit tests
+npm run build               # build every workspace
+npm run contracts:check     # OpenAPI contract matches the API
+(cd apps/mobile && flutter analyze && flutter test)
 ```
+
+Setup, database, and environment templates are described in `README.md`.
