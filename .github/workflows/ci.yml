@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: Type check and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+  migrations:
+    name: Database migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: flowwave
+          POSTGRES_PASSWORD: flowwave
+          POSTGRES_DB: flowwave_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flowwave"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://flowwave:flowwave@localhost:5432/flowwave_test
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./scripts/verify-migrations.sh
