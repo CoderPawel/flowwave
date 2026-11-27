@@ -71,7 +71,8 @@ npm run lint                 # ESLint for TypeScript packages, API, and web pane
 npm run typecheck            # strict TypeScript check of every workspace
 npm test                     # build and run all TypeScript unit tests
 npm run check                # lint + typecheck + test
-npm run build                # build every workspace (generates the Prisma client)
+npm run generate             # build packages/core and generate the Prisma client
+npm run build                # build every workspace
 npm run contracts:generate   # regenerate packages/contracts from the API
 npm run contracts:check      # fail if the committed contract is out of date
 

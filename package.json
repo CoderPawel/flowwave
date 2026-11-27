@@ -15,10 +15,10 @@
     "apps/web"
   ],
   "scripts": {
-    "build:core": "npm run build -w @flowwave/core",
+    "generate": "npm run build -w @flowwave/core && npm run prisma:generate -w @flowwave/api",
     "build": "npm run build --workspaces --if-present",
-    "lint": "npm run build:core && eslint . && npm run lint -w @flowwave/web",
-    "typecheck": "npm run build:core && npm run typecheck --workspaces --if-present",
+    "lint": "npm run generate && eslint . && npm run lint -w @flowwave/web",
+    "typecheck": "npm run generate && npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "check": "npm run lint && npm run typecheck && npm test",
     "contracts:generate": "npm run openapi:generate -w @flowwave/api && npm run generate -w @flowwave/contracts",
