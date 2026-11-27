@@ -1,6 +1,6 @@
 # FlowWave product vision
 
-- Status: Proposal, awaiting reconciliation with the owner's earlier plan
+- Status: Proposal; reconciled with Copilot prompt 1 (see the [roadmap](../roadmap.md#reconciliation-log))
 - Last updated: 2026-11-27
 
 ## Problem
@@ -36,7 +36,7 @@ around it.
 | --- | --- | --- |
 | Android phone | Main app, offline-first; reads wearable data from Health Connect; measures screen time totals | First platform. iOS later; the core already declares Apple Health. |
 | Older Mi Band (4–7) currently paired with Zepp Life | Sleep, steps, heart rate | Zepp Life does not write to Health Connect; see [Mi Band integration](#mi-band-integration). |
-| Windows computer | Active vs idle minutes only | Small desktop agent in a later phase. |
+| Windows computer | Active vs idle minutes only | Small desktop agent after the MVP (roadmap phase 7). |
 
 ## How it works
 
@@ -66,11 +66,13 @@ the field is added to [`docs/privacy/data-inventory.md`](../privacy/data-invento
 | Energy and focus | Manual check-in | Rating 1–5 each, with time | 1 |
 | Meals | Manual log | Time and size (light / normal / heavy); no calories, no food photos | 1 |
 | Sleep | Manual log, later Health Connect | Sleep start, end, duration; stages if available | 1, 2 |
-| Breaks | Manual tap | Start and end of a break | 1 |
-| Movement | Health Connect | Steps and active minutes, aggregated per hour | 2 |
-| Body intensity | Health Connect | Heart rate samples and resting heart rate, if the band exports them | 2 |
-| Phone screen time | Android usage statistics, computed on the device | Total screen-on minutes per hour; no app names, no content | 3 |
-| Computer activity | Windows agent | Active and idle minutes per interval, from system idle time | 3 |
+| Rest and breaks | Manual tap | Start and end | 1 |
+| Caffeine | Manual log | Time and rough amount (small / medium / large); no product names | 1 |
+| Exercise | Manual log, later Health Connect | Start, end, intensity (light / moderate / hard); no GPS routes | 1, 2 |
+| Movement | Health Connect | Steps, aggregated per hour | 2 |
+| Body intensity | Health Connect | Heart rate as 5-minute min / average / max, and daily resting heart rate, if the band exports them | 2 |
+| Phone screen use | Android usage statistics, computed on the device | Screen-on minutes and unlock count per hour; no app names, no content | 3 |
+| Computer activity | Windows agent | Active and idle minutes per interval, from system idle time | 7 |
 
 Never collected, in any phase: window titles, URLs or browsing history,
 document contents, messages, file names or paths, keystrokes or typed text.

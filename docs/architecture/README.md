@@ -1,4 +1,12 @@
-# Architecture decision notes
+# Architecture
+
+## Overview documents
+
+- [System overview](system-overview.md): components, vocabulary, quality attributes
+- [Data flow](data-flow.md): what is collected, where it is stored, how it syncs
+- [Security boundaries](security-boundaries.md): trust zones, controls, threats
+
+## Decision notes
 
 Write a short note here **before** changing architecture (new package, new
 dependency, storage model change, sync protocol change, new external data
@@ -11,6 +19,10 @@ it with a new one instead.
 | [0002](0002-time-and-missing-data.md) | Zoned UTC timestamps and explicit missing data | Accepted |
 | [0003](0003-privacy-and-consent.md) | Data minimization and append-only consent | Accepted |
 | [0004](0004-offline-first-idempotent-sync.md) | Offline-first storage with idempotent sync operations | Accepted |
+| [0005](0005-android-first-native-kotlin.md) | Android first, with a native Kotlin app | Proposed (UI stack awaits owner confirmation) |
+| [0006](0006-health-connect-wearable-gateway.md) | Health Connect as the only wearable gateway | Accepted |
+| [0007](0007-android-offline-first-storage.md) | Android offline-first storage and background work | Accepted, depends on 0005 |
+| [0008](0008-nestjs-sync-api.md) | NestJS for the sync API | Accepted |
 
 ## Template
 
