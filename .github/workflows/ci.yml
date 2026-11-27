@@ -13,8 +13,8 @@ jobs:
     name: Type check and unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -41,5 +41,5 @@ jobs:
     env:
       DATABASE_URL: postgres://flowwave:flowwave@localhost:5432/flowwave_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: ./scripts/verify-migrations.sh
