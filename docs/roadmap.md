@@ -15,7 +15,7 @@ is collected.
 | --- | --- | --- | --- |
 | 0 | Foundations: shared core, first schema, CI | Yes | Done ([#1](https://github.com/CoderPawel/flowwave/pull/1)) |
 | 1 | Architecture documents | Yes | Done (docs pull request) |
-| 2 | Monorepo: API, web, mobile, contracts, analytics engine, Docker, CI | Yes | In progress |
+| 2 | Monorepo: API, web, mobile, contracts, analytics engine, Docker, CI | Yes | Done (monorepo pull request, [0011](architecture/0011-monorepo-layout-and-tooling.md)) |
 | 3 | Data model in Prisma | Yes | Planned |
 | 4 | Authentication, consent, export, deletion | Yes | Planned |
 | 5 | Flutter app foundation | Yes | Planned |
