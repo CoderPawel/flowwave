@@ -6,7 +6,9 @@ how to plan focused work. **It is not a medical application**, and its
 estimates are not medical assessments or diagnoses.
 
 Read [`AGENTS.md`](AGENTS.md) before contributing: it lists the project rules
-and where each one is enforced.
+and where each one is enforced. The product direction is in
+[`docs/product/vision.md`](docs/product/vision.md) and the plan of record is
+[`docs/roadmap.md`](docs/roadmap.md).
 
 ## Repository layout
 
@@ -23,6 +25,8 @@ db/migrations/        PostgreSQL migrations (NNNN_name.up.sql / .down.sql)
 db/tests/             SQL constraint tests, run inside a rolled-back transaction
 docs/architecture/    Decision notes; write one before changing architecture
 docs/privacy/         Data inventory: every collected field and why
+docs/product/         Product vision: problem, limits, planned data, design principles
+docs/roadmap.md       Phased plan of record
 scripts/              Developer and CI scripts
 ```
 
