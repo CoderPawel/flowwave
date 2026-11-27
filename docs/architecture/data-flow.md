@@ -19,7 +19,7 @@ and how it is synchronized. Components are described in the
 | Sleep sessions (start, end, stages if available) | Health Connect or user | Yes | Yes | |
 | Steps | Health Connect | Hourly totals | Hourly totals | Per-step samples |
 | Heart rate | Health Connect | 5-minute min / average / max; daily resting value | Same | Raw beat-level samples |
-| Screen use | `UsageStatsManager` | Screen-on minutes and unlock count per hour | Same | Package names, app usage, raw events |
+| Screen use | `UsageStatsManager` | Per 30 minutes: screen-on time, unlocks, app switches, time per app category | Same | Package names, app names, raw events |
 | Consent decisions | User | Yes | Yes | |
 | Estimates and suggestions | Computed on device | Recomputed on demand; cached | No (recomputed from inputs) | |
 
@@ -101,19 +101,21 @@ Rules:
 
 ```mermaid
 flowchart LR
-    ev["UsageStatsManager.queryEvents (since last run)"] --> filter["Keep only SCREEN_INTERACTIVE, SCREEN_NON_INTERACTIVE, KEYGUARD_HIDDEN"]
-    filter --> intervals["Build screen-on intervals in memory"]
-    intervals --> buckets["Split into hourly buckets: screen-on minutes, unlock count"]
+    ev["UsageStatsManager.queryEvents (since last run)"] --> filter["Keep screen, keyguard, and foreground-app events"]
+    filter --> intervals["Build screen-on intervals in memory, map each foreground package to a category with a local table"]
+    intervals --> buckets["Split into 30-minute buckets: screen-on seconds, unlocks, app switches, seconds per category"]
     buckets --> db[("On-device database")]
-    filter -. "all other event types, including package names" .-> drop["Discarded in memory, never stored"]
+    intervals -. "package names after categorizing, all other event types" .-> drop["Discarded in memory, never stored"]
 ```
 
 - Runs at least every few hours, because Android keeps usage events only for a
   limited number of days.
 - Needs the user to grant Usage access in system settings. Without it, screen
   use is missing with reason `no_consent`.
-- Per-app or per-category breakdowns are out of scope for the MVP and would need
-  their own decision note.
+- Per-app breakdowns are out of scope. Per-category totals were added by the
+  owner's plan (roadmap step 9); the storage format is decided in
+  [0012](0012-data-model.md) (`device_usage_buckets`), and step 9 implements the
+  collection.
 
 ## Estimates and suggestions
 

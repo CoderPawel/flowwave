@@ -51,13 +51,18 @@ jobs:
       FLOWWAVE_TEST_DATABASE_URL: postgres://flowwave:flowwave@localhost:5432/flowwave_test
     steps:
       - uses: actions/checkout@v7
-      - run: ./scripts/verify-migrations.sh
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm test -w @flowwave/api
+      - run: npm run generate
+      - name: Migrations, drift check, SQL tests, and down migrations
+        run: npm run db:verify
+      - name: API tests against the migrated database
+        run: npm test -w @flowwave/api
+      - name: Synthetic seed runs and can be repeated
+        run: npm run db:seed && npm run db:seed
 
   mobile:
     name: Analyze, test, and build (Flutter)

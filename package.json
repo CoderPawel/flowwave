@@ -24,7 +24,10 @@
     "contracts:generate": "npm run openapi:generate -w @flowwave/api && npm run generate -w @flowwave/contracts",
     "contracts:check": "npm run contracts:generate && git diff --exit-code -- packages/contracts",
     "dev:api": "npm run dev -w @flowwave/api",
-    "dev:web": "npm run dev -w @flowwave/web"
+    "dev:web": "npm run dev -w @flowwave/web",
+    "db:migrate": "npm run prisma:migrate:deploy -w @flowwave/api",
+    "db:seed": "npm run generate && npm run db:seed -w @flowwave/api",
+    "db:verify": "./scripts/verify-migrations.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

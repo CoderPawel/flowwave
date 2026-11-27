@@ -90,6 +90,9 @@ carry a semantic `calculation_version` and an `explanation` that a CHECK
 requires to contain a `factors` array and a non-empty `disclaimer` (rules 2
 and 10). `insufficient_data` results have no value instead of a zero.
 Recommendations store a template key and parameters, never generated text.
+These tables work for both options of open decision A (roadmap): the server
+engine writes them, or the phone uploads its results through sync. Nothing
+writes them before steps 11–14.
 
 **Reversibility.** Prisma has no down migrations, so each migration folder
 holds a hand-written `down.sql`. `scripts/verify-migrations.sh` applies the
