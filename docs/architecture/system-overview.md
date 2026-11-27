@@ -1,6 +1,6 @@
 # System overview
 
-- Status: Accepted for the MVP, except the mobile UI stack (see [0005](0005-android-first-native-kotlin.md), Proposed)
+- Status: Accepted for the MVP
 - Last updated: 2026-11-27
 
 FlowWave learns a person's own daily rhythm of energy, focus, load, recovery,
@@ -23,7 +23,7 @@ flowchart LR
         band["Mi Band"] -->|Bluetooth| mifit["Mi Fitness app (Xiaomi)"]
         mifit -->|writes| hc[("Health Connect")]
         usage["UsageStatsManager (screen events)"]
-        app["FlowWave Android app"]
+        app["FlowWave app (Flutter, Android)"]
         local[("On-device database")]
         hc -->|"read with consent"| app
         usage -->|"read with usage access"| app
@@ -45,12 +45,12 @@ Dashed components are not part of the MVP.
 
 | Component | Responsibility | Technology | Decision |
 | --- | --- | --- | --- |
-| Android app | All user-facing features; works fully offline; owns the user's primary copy of the data | Native Kotlin (proposed) | [0005](0005-android-first-native-kotlin.md), [0007](0007-android-offline-first-storage.md) |
+| Android app | All user-facing features; data capture works fully offline; owns the user's primary copy of the data | Flutter, with Kotlin platform channels where needed | [0009](0009-flutter-mobile-app.md), [0007](0007-android-offline-first-storage.md) |
 | Health Connect adapter (in app) | Reads sleep, steps, heart rate, and exercise sessions written by Mi Fitness or other apps | Health Connect Jetpack client | [0006](0006-health-connect-wearable-gateway.md) |
 | Screen-use collector (in app) | Turns screen on/off and unlock events into per-hour totals | Android `UsageStatsManager` | [data flow](data-flow.md#screen-use-aggregation) |
-| Domain rules | Time handling, explicit missing data, consent, privacy guard, idempotent sync, explained estimates | `@flowwave/core` (TypeScript), mirrored in Kotlin with shared test vectors | [0001](0001-monorepo-and-shared-core.md)–[0004](0004-offline-first-idempotent-sync.md) |
+| Domain rules | Time handling, explicit missing data, consent, privacy guard, idempotent sync, explained estimates | `@flowwave/core` (TypeScript), mirrored in Dart with shared test vectors | [0001](0001-monorepo-and-shared-core.md)–[0004](0004-offline-first-idempotent-sync.md) |
 | Sync API | Optional backup and sync; idempotent operation intake; export and account deletion | NestJS on Node.js | [0008](0008-nestjs-sync-api.md) |
-| Database | Server copy for users who opt in to sync | PostgreSQL | [0001](0001-monorepo-and-shared-core.md), `db/migrations` |
+| Database | Server copy for users who opt in to sync | PostgreSQL with Prisma | [0010](0010-prisma-schema-and-data-access.md) |
 | Web panel (later) | Larger views of rhythm and patterns | Next.js | Decision note before work starts |
 | Windows agent (later) | Active and idle minutes from the system idle timer | To be decided | Decision note before work starts |
 | iOS app (later) | Same features with Apple Health | To be decided | Decision note before work starts |
@@ -73,9 +73,12 @@ All of these are personal estimates, not clinical measures.
 ## Planned repository layout
 
 ```text
-apps/android/        Native Android app (phase 1)
-apps/api/            NestJS sync API (phase 4)
-apps/web/            Next.js web panel (later)
+apps/mobile/         Flutter app, Android first
+apps/api/            NestJS API with Prisma
+apps/web/            Next.js web panel
+packages/contracts/  OpenAPI contract generated from the API
+packages/analytics-engine/  Rhythm, Energy Score, Intensity Debt, recommendations
+infrastructure/docker/      Local PostgreSQL via Docker Compose
 packages/core/       Shared domain rules (exists)
 db/                  PostgreSQL migrations and SQL tests (exists)
 docs/                Architecture, product, privacy (exists)
@@ -109,7 +112,7 @@ docs/                Architecture, product, privacy (exists)
 | --- | --- | --- |
 | Zepp Life has no direct Health Connect link, and the Google Fit route ends in 2026 | No wearable data for older bands | Move the band to Mi Fitness; manual sleep logging always works ([0006](0006-health-connect-wearable-gateway.md)). |
 | Mi Fitness stops syncing when the system kills it in the background | Gaps in wearable data | Show gaps as missing with reason; onboarding explains battery-optimization settings. |
-| Domain rules diverge between TypeScript core and Kotlin app | Inconsistent estimates or sync bugs | Shared JSON test vectors run in both test suites ([0005](0005-android-first-native-kotlin.md)). |
+| Domain rules diverge between TypeScript core and Dart app | Inconsistent estimates or sync bugs | Shared JSON test vectors run in both test suites ([0009](0009-flutter-mobile-app.md)). |
 | Google Play policy review for health and usage-access permissions | Release delay | Request only needed permissions, with in-app rationale and a privacy policy that matches the data inventory. |
 | Low check-in adherence | Too little data for a rhythm | One-tap check-ins from notifications and a widget; the app works with partial data and says so. |
 

@@ -1,6 +1,6 @@
 # 0008. NestJS for the sync API
 
-- Status: Accepted (platform choice). Authentication and hosting get their own decision notes before the API phase.
+- Status: Accepted (platform choice). Database access superseded by [0010](0010-prisma-schema-and-data-access.md) (Prisma). Authentication and hosting get their own decision notes before the API phase.
 - Date: 2026-11-27
 
 ## Context

@@ -1,6 +1,6 @@
 # 0007. Android offline-first storage and background work
 
-- Status: Accepted (applies once the Kotlin app from [0005](0005-android-first-native-kotlin.md) is confirmed)
+- Status: Partly superseded by [0009](0009-flutter-mobile-app.md): Drift replaces Room, and SQLCipher and WorkManager are reached from Flutter. The offline-first rules, encryption, backup exclusion, worker idempotency, and conflict rules still apply.
 - Date: 2026-11-27
 - Builds on: [0004](0004-offline-first-idempotent-sync.md), which defines sync operations and idempotency
 

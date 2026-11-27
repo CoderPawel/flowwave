@@ -1,6 +1,6 @@
 # 0005. Android first, with a native Kotlin app
 
-- Status: Proposed. "Android first" is accepted; the native Kotlin UI stack awaits the owner's confirmation.
+- Status: Superseded by [0009](0009-flutter-mobile-app.md) (Flutter). "Android first" remains accepted.
 - Date: 2026-11-27
 
 ## Context
