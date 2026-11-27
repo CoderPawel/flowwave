@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { APP_CONFIG, type AppConfig } from './config/appConfig.js';
 import { HealthModule } from './health/healthModule.js';
+import { ImportedRecordsModule } from './importedRecords/importedRecordsModule.js';
 import { loggerOptions } from './logging/loggerOptions.js';
 import { PrismaModule } from './prisma/prismaModule.js';
 
@@ -12,7 +13,7 @@ export class AppModule {
     return {
       module: AppModule,
       global: true,
-      imports: [LoggerModule.forRoot(loggerOptions(config)), PrismaModule, HealthModule],
+      imports: [LoggerModule.forRoot(loggerOptions(config)), PrismaModule, HealthModule, ImportedRecordsModule],
       providers: [{ provide: APP_CONFIG, useValue: config }],
       exports: [APP_CONFIG],
     };
