@@ -1,5 +1,18 @@
-// FlowWave database schema. Models are added in roadmap step 3; until then the
-// schema lives in db/migrations (see docs/architecture/0010-prisma-schema-and-data-access.md).
+// FlowWave database schema (roadmap step 3, decision note 0012).
+//
+// Conventions, enforced by CHECK constraints and triggers in the migration SQL
+// (Prisma's schema language cannot express them):
+//   * Event times are stored as <name>_at_utc (timestamptz) + <name>_time_zone
+//     (IANA) + <name>_utc_offset_minutes, so local days survive travel.
+//   * Optional measured values have a value column and a *_missing_reason
+//     column; exactly one is set. Missing data is never stored as zero.
+//   * Numeric columns carry their unit in the name (_minutes, _seconds, _count)
+//     or in an explicit unit column (health_samples.unit).
+//   * Every user-owned row has user_id. Rows that reference another user-owned
+//     row use a composite foreign key that includes user_id, so a row can
+//     never point at another user's data.
+//   * Every column is listed in docs/data/data-dictionary.md and
+//     docs/privacy/data-inventory.md (checked by apps/api/test/dataDictionary.test.ts).
 
 generator client {
   provider            = "prisma-client"
@@ -10,4 +23,682 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums. Values are lowercase so they match @flowwave/core and the API JSON.
+// ---------------------------------------------------------------------------
+
+/// Why a value is absent (mirrors MissingReason in @flowwave/core).
+enum MissingReason {
+  not_recorded
+  user_skipped
+  no_consent
+  source_unavailable
+  not_yet_synced
+
+  @@map("missing_reason")
+}
+
+/// Where a check-in's sleep value came from (mirrors DataSourceId in @flowwave/core).
+enum CheckInSleepSource {
+  manual_check_in
+  apple_health
+  health_connect
+
+  @@map("check_in_sleep_source")
+}
+
+enum DevicePlatform {
+  android
+  ios
+  web
+  windows
+
+  @@map("device_platform")
+}
+
+/// `synthetic` is used only by seed and test data, never by real imports.
+enum HealthSourceKind {
+  manual_entry
+  health_connect
+  apple_health
+  synthetic
+
+  @@map("health_source_kind")
+}
+
+enum HealthMetric {
+  steps
+  heart_rate
+  resting_heart_rate
+
+  @@map("health_metric")
+}
+
+enum MeasurementUnit {
+  count
+  beats_per_minute
+
+  @@map("measurement_unit")
+}
+
+enum ActivityType {
+  walking
+  running
+  cycling
+  strength_training
+  sports
+  other
+
+  @@map("activity_type")
+}
+
+enum ActivityIntensity {
+  light
+  moderate
+  hard
+
+  @@map("activity_intensity")
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+  other
+
+  @@map("meal_type")
+}
+
+/// Rough size chosen by the user; FlowWave stores no food or drink descriptions.
+enum PortionSize {
+  small
+  medium
+  large
+
+  @@map("portion_size")
+}
+
+enum RestType {
+  short_break
+  nap
+  relaxation
+  outdoor_break
+  other
+
+  @@map("rest_type")
+}
+
+enum FocusOutcome {
+  completed
+  ended_early
+  interrupted
+
+  @@map("focus_outcome")
+}
+
+enum ScoreType {
+  energy
+  intensity_debt
+
+  @@map("score_type")
+}
+
+enum CalculationStatus {
+  computed
+  insufficient_data
+
+  @@map("calculation_status")
+}
+
+enum RhythmState {
+  ready
+  flow
+  recovery
+  overdrive
+
+  @@map("rhythm_state")
+}
+
+enum RecommendationKind {
+  focus_block
+  break
+  wind_down
+  meal_timing
+  movement
+  caffeine_timing
+
+  @@map("recommendation_kind")
+}
+
+enum RecommendationStatus {
+  active
+  accepted
+  dismissed
+  expired
+
+  @@map("recommendation_status")
+}
+
+enum AuditAction {
+  account_created
+  account_deleted
+  consent_recorded
+  device_registered
+  device_revoked
+  data_exported
+  data_deleted
+
+  @@map("audit_action")
+}
+
+// ---------------------------------------------------------------------------
+// Account and devices
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  homeTimeZone     String   @map("home_time_zone") @db.VarChar(64)
+  /// The user's own goal; NULL until the user sets it. Never defaulted silently.
+  sleepGoalMinutes Int?     @map("sleep_goal_minutes") @db.SmallInt
+  /// True only for seed and test accounts; excluded from pilot analysis.
+  isSynthetic      Boolean  @default(false) @map("is_synthetic")
+  createdAtUtc     DateTime @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc     DateTime @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+
+  devices               Device[]
+  consents              Consent[]
+  healthDataSources     HealthDataSource[]
+  healthSamples         HealthSample[]
+  sleepSessions         SleepSession[]
+  activitySessions      ActivitySession[]
+  deviceUsageBuckets    DeviceUsageBucket[]
+  selfCheckIns          SelfCheckIn[]
+  mealEvents            MealEvent[]
+  caffeineEvents        CaffeineEvent[]
+  restEvents            RestEvent[]
+  focusSessions         FocusSession[]
+  dailyScores           DailyScore[]
+  rhythmBuckets         RhythmBucket[]
+  recommendations       Recommendation[]
+  syncCheckpoints       SyncCheckpoint[]
+  auditEvents           AuditEvent[]
+  appliedSyncOperations AppliedSyncOperation[]
+
+  @@map("users")
+}
+
+/// An installation of a FlowWave app. No hardware identifiers (IMEI, serial,
+/// advertising ID) are stored.
+model Device {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String         @map("user_id") @db.Uuid
+  platform      DevicePlatform
+  appVersion    String?        @map("app_version") @db.VarChar(32)
+  lastSeenAtUtc DateTime?      @map("last_seen_at_utc") @db.Timestamptz(6)
+  createdAtUtc  DateTime       @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc  DateTime       @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  /// Set when the user signs the device out; its data stays with the user.
+  deletedAtUtc  DateTime?      @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceUsageBuckets DeviceUsageBucket[]
+  syncCheckpoints    SyncCheckpoint[]
+
+  @@unique([id, userId])
+  @@index([userId])
+  @@map("devices")
+}
+
+/// Append-only log of consent decisions (decision 0003). Revocation is a new
+/// row; UPDATE is rejected by a trigger. No updated_at because rows never change.
+model Consent {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                  String   @map("user_id") @db.Uuid
+  sourceId                String   @map("source_id")
+  state                   String
+  scopes                  String[] @default([])
+  policyVersion           String   @map("policy_version") @db.VarChar(32)
+  decidedAtUtc            DateTime @map("decided_at_utc") @db.Timestamptz(6)
+  decidedTimeZone         String   @map("decided_time_zone") @db.VarChar(64)
+  decidedUtcOffsetMinutes Int      @map("decided_utc_offset_minutes") @db.SmallInt
+  createdAtUtc            DateTime @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sourceId, decidedAtUtc(sort: Desc)], map: "consent_decisions_user_source_decided_idx")
+  @@map("consent_decisions")
+}
+
+// ---------------------------------------------------------------------------
+// Imported and recorded health data
+// ---------------------------------------------------------------------------
+
+/// Where health data came from: Health Connect plus the app that wrote the
+/// data there (for example Mi Fitness), manual entry, or synthetic seed data.
+model HealthDataSource {
+  id                          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String           @map("user_id") @db.Uuid
+  kind                        HealthSourceKind
+  /// Deterministic key built by the client, e.g. "health_connect:com.mi.health".
+  sourceKey                   String           @map("source_key") @db.VarChar(200)
+  /// Package of the app that wrote the data into Health Connect (data origin).
+  /// Health provider apps only; never apps whose usage is measured.
+  providerPackage             String?          @map("provider_package") @db.VarChar(200)
+  providerName                String?          @map("provider_name") @db.VarChar(100)
+  recordingDeviceType         String?          @map("recording_device_type") @db.VarChar(32)
+  recordingDeviceManufacturer String?          @map("recording_device_manufacturer") @db.VarChar(100)
+  recordingDeviceModel        String?          @map("recording_device_model") @db.VarChar(100)
+  createdAtUtc                DateTime         @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc                DateTime         @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  /// Set when the user disconnects the source.
+  deletedAtUtc                DateTime?        @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  healthSamples    HealthSample[]
+  sleepSessions    SleepSession[]
+  activitySessions ActivitySession[]
+
+  @@unique([id, userId])
+  @@unique([userId, sourceKey])
+  @@map("health_data_sources")
+}
+
+/// Aggregated health measurements over an interval: steps per hour,
+/// heart rate min/average/max per 5 minutes, resting heart rate per day.
+/// Raw beat-level or per-step samples are never stored.
+model HealthSample {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String          @map("user_id") @db.Uuid
+  dataSourceId          String          @map("data_source_id") @db.Uuid
+  metric                HealthMetric
+  unit                  MeasurementUnit
+  startAtUtc            DateTime        @map("start_at_utc") @db.Timestamptz(6)
+  startTimeZone         String          @map("start_time_zone") @db.VarChar(64)
+  startUtcOffsetMinutes Int             @map("start_utc_offset_minutes") @db.SmallInt
+  endAtUtc              DateTime        @map("end_at_utc") @db.Timestamptz(6)
+  endTimeZone           String          @map("end_time_zone") @db.VarChar(64)
+  endUtcOffsetMinutes   Int             @map("end_utc_offset_minutes") @db.SmallInt
+  /// Sum for steps, average for heart rate, single value for resting heart rate.
+  value                 Float?
+  minValue              Float?          @map("min_value")
+  maxValue              Float?          @map("max_value")
+  sampleCount           Int?            @map("sample_count")
+  valueMissingReason    MissingReason?  @map("value_missing_reason")
+  /// Health Connect record ID; NULL for values computed by the aggregate API.
+  sourceRecordId        String?         @map("source_record_id") @db.VarChar(200)
+  /// Last modification time at the source; newer imports replace older ones.
+  sourceUpdatedAtUtc    DateTime        @map("source_updated_at_utc") @db.Timestamptz(6)
+  idempotencyKey        String          @map("idempotency_key") @db.VarChar(200)
+  createdAtUtc          DateTime        @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc          DateTime        @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  /// Tombstone for records deleted at the source, so deletions synchronize.
+  deletedAtUtc          DateTime?       @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataSource HealthDataSource @relation(fields: [dataSourceId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@unique([userId, dataSourceId, sourceRecordId])
+  @@index([userId, metric, startAtUtc])
+  @@map("health_samples")
+}
+
+model SleepSession {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String         @map("user_id") @db.Uuid
+  dataSourceId          String         @map("data_source_id") @db.Uuid
+  startAtUtc            DateTime       @map("start_at_utc") @db.Timestamptz(6)
+  startTimeZone         String         @map("start_time_zone") @db.VarChar(64)
+  startUtcOffsetMinutes Int            @map("start_utc_offset_minutes") @db.SmallInt
+  endAtUtc              DateTime       @map("end_at_utc") @db.Timestamptz(6)
+  endTimeZone           String         @map("end_time_zone") @db.VarChar(64)
+  endUtcOffsetMinutes   Int            @map("end_utc_offset_minutes") @db.SmallInt
+  deepSleepMinutes      Int?           @map("deep_sleep_minutes") @db.SmallInt
+  lightSleepMinutes     Int?           @map("light_sleep_minutes") @db.SmallInt
+  remSleepMinutes       Int?           @map("rem_sleep_minutes") @db.SmallInt
+  awakeMinutes          Int?           @map("awake_minutes") @db.SmallInt
+  /// Set when the source provided no sleep stages at all.
+  stagesMissingReason   MissingReason? @map("stages_missing_reason")
+  sourceRecordId        String?        @map("source_record_id") @db.VarChar(200)
+  sourceUpdatedAtUtc    DateTime       @map("source_updated_at_utc") @db.Timestamptz(6)
+  idempotencyKey        String         @map("idempotency_key") @db.VarChar(200)
+  version               Int            @default(1)
+  createdAtUtc          DateTime       @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc          DateTime       @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc          DateTime?      @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataSource HealthDataSource @relation(fields: [dataSourceId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@unique([userId, dataSourceId, sourceRecordId])
+  @@index([userId, startAtUtc])
+  @@map("sleep_sessions")
+}
+
+/// Exercise and other physical activity. No GPS routes, calories or distance.
+model ActivitySession {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String             @map("user_id") @db.Uuid
+  dataSourceId           String             @map("data_source_id") @db.Uuid
+  activityType           ActivityType       @map("activity_type")
+  startAtUtc             DateTime           @map("start_at_utc") @db.Timestamptz(6)
+  startTimeZone          String             @map("start_time_zone") @db.VarChar(64)
+  startUtcOffsetMinutes  Int                @map("start_utc_offset_minutes") @db.SmallInt
+  endAtUtc               DateTime           @map("end_at_utc") @db.Timestamptz(6)
+  endTimeZone            String             @map("end_time_zone") @db.VarChar(64)
+  endUtcOffsetMinutes    Int                @map("end_utc_offset_minutes") @db.SmallInt
+  intensity              ActivityIntensity?
+  intensityMissingReason MissingReason?     @map("intensity_missing_reason")
+  sourceRecordId         String?            @map("source_record_id") @db.VarChar(200)
+  sourceUpdatedAtUtc     DateTime           @map("source_updated_at_utc") @db.Timestamptz(6)
+  idempotencyKey         String             @map("idempotency_key") @db.VarChar(200)
+  version                Int                @default(1)
+  createdAtUtc           DateTime           @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc           DateTime           @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc           DateTime?          @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataSource HealthDataSource @relation(fields: [dataSourceId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@unique([userId, dataSourceId, sourceRecordId])
+  @@index([userId, startAtUtc])
+  @@map("activity_sessions")
+}
+
+/// Screen use per 30-minute bucket, as totals and per category. Package
+/// names are mapped to categories in memory on the phone and never stored.
+model DeviceUsageBucket {
+  id                          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String         @map("user_id") @db.Uuid
+  deviceId                    String         @map("device_id") @db.Uuid
+  bucketStartAtUtc            DateTime       @map("bucket_start_at_utc") @db.Timestamptz(6)
+  bucketStartTimeZone         String         @map("bucket_start_time_zone") @db.VarChar(64)
+  bucketStartUtcOffsetMinutes Int            @map("bucket_start_utc_offset_minutes") @db.SmallInt
+  bucketDurationMinutes       Int            @default(30) @map("bucket_duration_minutes") @db.SmallInt
+  /// Set when the bucket could not be measured; then every metric is NULL.
+  missingReason               MissingReason? @map("missing_reason")
+  screenOnSeconds             Int?           @map("screen_on_seconds")
+  unlockCount                 Int?           @map("unlock_count")
+  appSwitchCount              Int?           @map("app_switch_count")
+  productivitySeconds         Int?           @map("productivity_seconds")
+  communicationSeconds        Int?           @map("communication_seconds")
+  socialSeconds               Int?           @map("social_seconds")
+  entertainmentSeconds        Int?           @map("entertainment_seconds")
+  gamesSeconds                Int?           @map("games_seconds")
+  informationSeconds          Int?           @map("information_seconds")
+  otherSeconds                Int?           @map("other_seconds")
+  idempotencyKey              String         @map("idempotency_key") @db.VarChar(200)
+  sourceUpdatedAtUtc          DateTime       @map("source_updated_at_utc") @db.Timestamptz(6)
+  createdAtUtc                DateTime       @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc                DateTime       @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@unique([userId, deviceId, bucketStartAtUtc])
+  @@map("device_usage_buckets")
+}
+
+// ---------------------------------------------------------------------------
+// Self-reported data and life events. IDs are generated on the device.
+// ---------------------------------------------------------------------------
+
+model SelfCheckIn {
+  id                              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                          String              @map("user_id") @db.Uuid
+  recordedAtUtc                   DateTime            @map("recorded_at_utc") @db.Timestamptz(6)
+  recordedTimeZone                String              @map("recorded_time_zone") @db.VarChar(64)
+  recordedUtcOffsetMinutes        Int                 @map("recorded_utc_offset_minutes") @db.SmallInt
+  /// 1–5 scale used by energy estimate version 1.
+  selfReportedEnergy              Int?                @map("self_reported_energy") @db.SmallInt
+  selfReportedEnergyMissingReason MissingReason?      @map("self_reported_energy_missing_reason")
+  sleepDurationMinutes            Int?                @map("sleep_duration_minutes") @db.SmallInt
+  sleepDurationSource             CheckInSleepSource? @map("sleep_duration_source")
+  sleepDurationMissingReason      MissingReason?      @map("sleep_duration_missing_reason")
+  version                         Int                 @default(1)
+  createdAtUtc                    DateTime            @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc                    DateTime            @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc                    DateTime?           @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAtUtc(sort: Desc)], map: "check_ins_user_recorded_idx")
+  @@index([userId, updatedAtUtc], map: "check_ins_user_updated_idx")
+  @@map("check_ins")
+}
+
+/// When a meal happened and its rough size. No food descriptions, photos or calories.
+model MealEvent {
+  id                    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String         @map("user_id") @db.Uuid
+  eatenAtUtc            DateTime       @map("eaten_at_utc") @db.Timestamptz(6)
+  eatenTimeZone         String         @map("eaten_time_zone") @db.VarChar(64)
+  eatenUtcOffsetMinutes Int            @map("eaten_utc_offset_minutes") @db.SmallInt
+  mealType              MealType       @map("meal_type")
+  size                  PortionSize?
+  sizeMissingReason     MissingReason? @map("size_missing_reason")
+  version               Int            @default(1)
+  createdAtUtc          DateTime       @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc          DateTime       @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc          DateTime?      @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eatenAtUtc])
+  @@map("meal_events")
+}
+
+/// When caffeine was consumed and a rough amount. No product names.
+model CaffeineEvent {
+  id                       String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String         @map("user_id") @db.Uuid
+  consumedAtUtc            DateTime       @map("consumed_at_utc") @db.Timestamptz(6)
+  consumedTimeZone         String         @map("consumed_time_zone") @db.VarChar(64)
+  consumedUtcOffsetMinutes Int            @map("consumed_utc_offset_minutes") @db.SmallInt
+  amount                   PortionSize?
+  amountMissingReason      MissingReason? @map("amount_missing_reason")
+  version                  Int            @default(1)
+  createdAtUtc             DateTime       @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc             DateTime       @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc             DateTime?      @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAtUtc])
+  @@map("caffeine_events")
+}
+
+/// Breaks and rest. The end is NULL while the rest is still in progress.
+model RestEvent {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  restType              RestType  @map("rest_type")
+  startAtUtc            DateTime  @map("start_at_utc") @db.Timestamptz(6)
+  startTimeZone         String    @map("start_time_zone") @db.VarChar(64)
+  startUtcOffsetMinutes Int       @map("start_utc_offset_minutes") @db.SmallInt
+  endAtUtc              DateTime? @map("end_at_utc") @db.Timestamptz(6)
+  endTimeZone           String?   @map("end_time_zone") @db.VarChar(64)
+  endUtcOffsetMinutes   Int?      @map("end_utc_offset_minutes") @db.SmallInt
+  version               Int       @default(1)
+  createdAtUtc          DateTime  @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc          DateTime  @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc          DateTime? @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startAtUtc])
+  @@map("rest_events")
+}
+
+/// A focused work block. No task names, documents or app names are stored.
+model FocusSession {
+  id                          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String         @map("user_id") @db.Uuid
+  startAtUtc                  DateTime       @map("start_at_utc") @db.Timestamptz(6)
+  startTimeZone               String         @map("start_time_zone") @db.VarChar(64)
+  startUtcOffsetMinutes       Int            @map("start_utc_offset_minutes") @db.SmallInt
+  endAtUtc                    DateTime?      @map("end_at_utc") @db.Timestamptz(6)
+  endTimeZone                 String?        @map("end_time_zone") @db.VarChar(64)
+  endUtcOffsetMinutes         Int?           @map("end_utc_offset_minutes") @db.SmallInt
+  /// The user's plan, if they set one. NULL means no plan, not zero minutes.
+  plannedDurationMinutes      Int?           @map("planned_duration_minutes") @db.SmallInt
+  outcome                     FocusOutcome?
+  /// 1–10, asked when the session ends.
+  selfRatedFocus              Int?           @map("self_rated_focus") @db.SmallInt
+  selfRatedFocusMissingReason MissingReason? @map("self_rated_focus_missing_reason")
+  version                     Int            @default(1)
+  createdAtUtc                DateTime       @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc                DateTime       @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+  deletedAtUtc                DateTime?      @map("deleted_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startAtUtc])
+  @@map("focus_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Calculated results. Always carry a calculation version and an explanation.
+// ---------------------------------------------------------------------------
+
+model DailyScore {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String            @map("user_id") @db.Uuid
+  /// Calendar day in the zone below.
+  localDate          DateTime          @map("local_date") @db.Date
+  timeZone           String            @map("time_zone") @db.VarChar(64)
+  scoreType          ScoreType         @map("score_type")
+  status             CalculationStatus
+  /// 0–100. NULL when status is insufficient_data; never defaulted to zero.
+  scoreValue         Float?            @map("score_value")
+  /// Share of expected inputs that were present, 0–1.
+  inputCoverageRatio Float             @map("input_coverage_ratio")
+  calculationVersion String            @map("calculation_version") @db.VarChar(32)
+  /// Factors used and missing, and the non-medical disclaimer.
+  explanation        Json
+  computedAtUtc      DateTime          @map("computed_at_utc") @db.Timestamptz(6)
+  createdAtUtc       DateTime          @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc       DateTime          @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, localDate, scoreType, calculationVersion])
+  @@map("daily_scores")
+}
+
+/// One 30-minute slot of a user's estimated rhythm.
+model RhythmBucket {
+  id                          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                      String            @map("user_id") @db.Uuid
+  bucketStartAtUtc            DateTime          @map("bucket_start_at_utc") @db.Timestamptz(6)
+  bucketStartTimeZone         String            @map("bucket_start_time_zone") @db.VarChar(64)
+  bucketStartUtcOffsetMinutes Int               @map("bucket_start_utc_offset_minutes") @db.SmallInt
+  bucketDurationMinutes       Int               @default(30) @map("bucket_duration_minutes") @db.SmallInt
+  status                      CalculationStatus
+  state                       RhythmState?
+  /// 0–100 estimated energy level. NULL when status is insufficient_data.
+  energyLevel                 Float?            @map("energy_level")
+  /// 0–1.
+  confidenceRatio             Float?            @map("confidence_ratio")
+  calculationVersion          String            @map("calculation_version") @db.VarChar(32)
+  explanation                 Json
+  computedAtUtc               DateTime          @map("computed_at_utc") @db.Timestamptz(6)
+  createdAtUtc                DateTime          @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc                DateTime          @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bucketStartAtUtc, calculationVersion])
+  @@map("rhythm_buckets")
+}
+
+/// A rule-based suggestion. Text is rendered from template_key and parameters
+/// on the client; no free text is generated or stored.
+model Recommendation {
+  id                        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                    String               @map("user_id") @db.Uuid
+  kind                      RecommendationKind
+  templateKey               String               @map("template_key") @db.VarChar(100)
+  parameters                Json                 @default("{}")
+  explanation               Json
+  validFromAtUtc            DateTime             @map("valid_from_at_utc") @db.Timestamptz(6)
+  validFromTimeZone         String               @map("valid_from_time_zone") @db.VarChar(64)
+  validFromUtcOffsetMinutes Int                  @map("valid_from_utc_offset_minutes") @db.SmallInt
+  validUntilAtUtc           DateTime             @map("valid_until_at_utc") @db.Timestamptz(6)
+  status                    RecommendationStatus @default(active)
+  respondedAtUtc            DateTime?            @map("responded_at_utc") @db.Timestamptz(6)
+  calculationVersion        String               @map("calculation_version") @db.VarChar(32)
+  createdAtUtc              DateTime             @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc              DateTime             @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, validFromAtUtc])
+  @@map("recommendations")
+}
+
+// ---------------------------------------------------------------------------
+// Synchronization and audit
+// ---------------------------------------------------------------------------
+
+/// Per device and stream, how far synchronization has progressed.
+model SyncCheckpoint {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  deviceId        String   @map("device_id") @db.Uuid
+  /// Entity stream, e.g. "check_in" or "health_sample".
+  stream          String   @db.VarChar(63)
+  /// Opaque server cursor handed back to the device on the next pull.
+  cursor          String   @db.VarChar(200)
+  lastSyncedAtUtc DateTime @map("last_synced_at_utc") @db.Timestamptz(6)
+  createdAtUtc    DateTime @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+  updatedAtUtc    DateTime @default(now()) @updatedAt @map("updated_at_utc") @db.Timestamptz(6)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@unique([userId, deviceId, stream])
+  @@map("sync_checkpoints")
+}
+
+/// Idempotency log for sync operations (decision 0004). Insert in the same
+/// transaction as the change it records.
+model AppliedSyncOperation {
+  operationId        String   @id @map("operation_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  entityType         String   @map("entity_type")
+  entityId           String   @map("entity_id") @db.Uuid
+  payloadFingerprint String   @map("payload_fingerprint")
+  result             Json
+  appliedAtUtc       DateTime @default(now()) @map("applied_at_utc") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, appliedAtUtc])
+  @@map("applied_sync_operations")
+}
+
+/// Append-only record of security- and privacy-relevant actions. Never
+/// contains health values. When the user is deleted, user_id becomes NULL so
+/// the fact that a deletion happened remains provable.
+model AuditEvent {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String?     @map("user_id") @db.Uuid
+  action        AuditAction
+  entityType    String?     @map("entity_type") @db.VarChar(63)
+  entityId      String?     @map("entity_id") @db.Uuid
+  metadata      Json        @default("{}")
+  occurredAtUtc DateTime    @default(now()) @map("occurred_at_utc") @db.Timestamptz(6)
+  createdAtUtc  DateTime    @default(now()) @map("created_at_utc") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAtUtc])
+  @@map("audit_events")
 }

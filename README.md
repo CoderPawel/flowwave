@@ -14,7 +14,9 @@ and where each one is enforced. The product direction is in
 
 ```text
 apps/api/             NestJS API: config validation, structured logs, health, Swagger
-  prisma/             Prisma schema (models arrive in roadmap step 3)
+  prisma/             Prisma schema and migrations (each with a hand-written down.sql)
+  src/importedRecords/  Idempotent imports of health samples, sleep, and usage buckets
+  src/seed/           Clearly marked synthetic records for development
 apps/web/             Next.js web panel with Tailwind (scaffold until step 15)
 apps/mobile/          Flutter Android app, offline-first (outside npm workspaces)
 packages/core/        Shared domain rules (zero runtime dependencies)
@@ -27,9 +29,9 @@ packages/core/        Shared domain rules (zero runtime dependencies)
 packages/analytics-engine/  Rhythm and score calculations with calculation metadata
 packages/contracts/   OpenAPI document generated from the API, plus TypeScript types
 infrastructure/docker/      Docker Compose for local PostgreSQL
-db/migrations/        PostgreSQL migrations (NNNN_name.up.sql / .down.sql)
 db/tests/             SQL constraint tests, run inside a rolled-back transaction
 docs/architecture/    Decision notes; write one before changing architecture
+docs/data/            Data dictionary and ER diagram
 docs/privacy/         Data inventory: every collected field and why
 docs/product/         Product vision and MVP scope
 docs/roadmap.md       Phased plan of record
@@ -90,9 +92,25 @@ database (Docker Compose creates `flowwave_test` on first start):
 export FLOWWAVE_TEST_DATABASE_URL=postgresql://flowwave:<password>@localhost:5432/flowwave_test
 npm test -w @flowwave/api
 
-# Apply migrations, run SQL tests, revert, and re-apply:
-DATABASE_URL=$FLOWWAVE_TEST_DATABASE_URL ./scripts/verify-migrations.sh
+# Apply migrations, check drift against schema.prisma, run SQL tests, revert, and re-apply:
+DATABASE_URL=$FLOWWAVE_TEST_DATABASE_URL npm run db:verify
 ```
+
+Development database (uses `DATABASE_URL` from `apps/api/.env`):
+
+```bash
+npm run db:migrate           # apply migrations (prisma migrate deploy)
+npm run db:seed              # add synthetic records (users.is_synthetic = true); safe to repeat
+```
+
+The seed refuses to run with `NODE_ENV=production`. Every seeded record is
+marked synthetic and uses the `synthetic` data source, so it can never be
+mistaken for real health data. Schema changes: edit `schema.prisma`, run
+`npm exec -w @flowwave/api -- prisma migrate dev --create-only --name <name>`,
+add the constraints Prisma cannot express to the generated `migration.sql`,
+write `down.sql`, and document new columns in
+[`docs/data/data-dictionary.md`](docs/data/data-dictionary.md) and
+[`docs/privacy/data-inventory.md`](docs/privacy/data-inventory.md).
 
 Mobile app:
 

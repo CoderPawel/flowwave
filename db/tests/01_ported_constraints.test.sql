@@ -1,5 +1,8 @@
--- Constraint tests for 0001_initial_schema. Run after applying the up migration:
---   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/0001_initial_schema.test.sql
+-- Constraint tests for the tables that existed before the Prisma port (users,
+-- check_ins, consent_decisions, applied_sync_operations). They run unchanged
+-- against the Prisma migration to prove no constraint was lost. Run after
+-- `prisma migrate deploy`:
+--   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/01_ported_constraints.test.sql
 -- Everything runs in a transaction that is rolled back, so no data is left behind.
 
 \o /dev/null
@@ -58,7 +61,7 @@ SELECT pg_temp.expect_failure($sql$
     INSERT INTO check_ins (id, user_id, recorded_at_utc, recorded_time_zone, recorded_utc_offset_minutes,
                            self_reported_energy, sleep_duration_missing_reason)
     VALUES (gen_random_uuid(), '11111111-1111-4111-8111-111111111111', now(), 'UTC', 0, 3, 'assumed_zero')
-$sql$, '23514');
+$sql$, '22P02'); -- missing reasons are a PostgreSQL enum since the Prisma port
 
 -- A sleep value needs a source.
 SELECT pg_temp.expect_failure($sql$

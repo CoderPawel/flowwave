@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Applies every up migration, runs the schema tests, rolls everything back with
-# the down migrations, and applies the up migrations again to prove they are
-# reversible. Requires psql and DATABASE_URL pointing at a disposable database.
+# Verifies the Prisma migrations in apps/api/prisma/migrations:
+#   1. reverts anything left from a previous run (every down.sql, newest first),
+#   2. applies all migrations with `prisma migrate deploy`,
+#   3. checks that the database matches schema.prisma (no drift),
+#   4. runs the SQL constraint tests in db/tests,
+#   5. reverts everything with the down.sql files and checks nothing is left,
+#   6. applies the migrations again, leaving a migrated database behind.
+# Requires psql, `npm ci`, and DATABASE_URL pointing at a disposable database.
 set -euo pipefail
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
@@ -11,37 +16,54 @@ fi
 
 cd "$(dirname "$0")/.."
 PSQL=(psql "$DATABASE_URL" --quiet --no-psqlrc -v ON_ERROR_STOP=1)
+MIGRATIONS_DIR=apps/api/prisma/migrations
 
-apply_up() {
-  for file in $(ls db/migrations/*.up.sql | sort); do
-    echo "apply  $file"
-    "${PSQL[@]}" -f "$file"
-  done
+prisma() {
+  npm exec --workspace @flowwave/api --no -- prisma "$@"
 }
 
-apply_down() {
-  for file in $(ls db/migrations/*.down.sql | sort -r); do
+revert_all() {
+  for file in $(ls "$MIGRATIONS_DIR"/*/down.sql | sort -r); do
     echo "revert $file"
     "${PSQL[@]}" -f "$file"
   done
+  "${PSQL[@]}" -c 'DROP TABLE IF EXISTS "_prisma_migrations"'
 }
 
-run_tests() {
-  for file in $(ls db/tests/*.test.sql 2>/dev/null | sort); do
-    echo "test   $file"
-    "${PSQL[@]}" -f "$file"
-  done
-}
+for dir in "$MIGRATIONS_DIR"/*/; do
+  if [[ ! -f "$dir/down.sql" ]]; then
+    echo "Migration $dir has no down.sql." >&2
+    exit 1
+  fi
+done
 
-apply_up
-run_tests
-apply_down
+revert_all
+prisma migrate deploy
 
-remaining=$("${PSQL[@]}" -tA -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")
-if [[ "$remaining" != "0" ]]; then
-  echo "Down migrations left $remaining table(s) in the public schema." >&2
+echo "drift  schema.prisma vs database"
+if ! prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code; then
+  echo "The migrated database does not match apps/api/prisma/schema.prisma." >&2
   exit 1
 fi
 
-apply_up
+for file in $(ls db/tests/*.test.sql | sort); do
+  echo "test   $file"
+  "${PSQL[@]}" -f "$file"
+done
+
+revert_all
+leftovers=$("${PSQL[@]}" -tA -c "
+  SELECT count(*) FROM (
+    SELECT tablename FROM pg_tables WHERE schemaname = current_schema()
+    UNION ALL SELECT typname FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = current_schema() AND t.typtype = 'e'
+    UNION ALL SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = current_schema()
+  ) AS objects")
+if [[ "$leftovers" != "0" ]]; then
+  echo "down.sql left $leftovers table(s), enum type(s) or function(s) behind." >&2
+  exit 1
+fi
+
+prisma migrate deploy
 echo "Migrations verified."

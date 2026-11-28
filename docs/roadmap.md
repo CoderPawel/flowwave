@@ -15,8 +15,8 @@ is collected.
 | --- | --- | --- | --- |
 | 0 | Foundations: shared core, first schema, CI | Yes | Done ([#1](https://github.com/CoderPawel/flowwave/pull/1)) |
 | 1 | Architecture documents | Yes | Done ([#2](https://github.com/CoderPawel/flowwave/pull/2)) |
-| 2 | Monorepo: API, web, mobile, contracts, analytics engine, Docker, CI | Yes | Done (monorepo pull request, [0011](architecture/0011-monorepo-layout-and-tooling.md)) |
-| 3 | Data model in Prisma | Yes | Planned |
+| 2 | Monorepo: API, web, mobile, contracts, analytics engine, Docker, CI | Yes | Done ([#3](https://github.com/CoderPawel/flowwave/pull/3), [0011](architecture/0011-monorepo-layout-and-tooling.md)) |
+| 3 | Data model in Prisma | Yes | Done in a pull request ([0012](architecture/0012-data-model.md), [data dictionary](data/data-dictionary.md)) |
 | 4 | Authentication, consent, export, deletion | Yes | Planned |
 | 5 | Flutter app foundation | Yes | Planned |
 | 6 | Self check-in | Yes | Planned |
@@ -61,10 +61,20 @@ requirement); keeps `db/migrations` until step 3 ports it to Prisma
 ([0010](architecture/0010-prisma-schema-and-data-access.md)); Flutter replaces
 the proposed Kotlin app ([0009](architecture/0009-flutter-mobile-app.md)).
 
-**Step 3. Data model.** Adopted: all 18 entities and requirements. Changes:
-the existing constraints (present-or-missing values, ranges, append-only
-consent, cascade deletion) are ported, not dropped; heart rate is stored as
-5-minute aggregates, not raw samples ([data flow](architecture/data-flow.md)).
+**Step 3. Data model.** Adopted: all 18 entities and requirements, a
+migration, a synthetic seed, an ER diagram, repository tests for idempotent
+imports, and a data dictionary ([0012](architecture/0012-data-model.md)).
+Changes: the existing constraints (present-or-missing values, ranges,
+append-only consent, cascade deletion) are ported, not dropped, and
+`db/migrations` is removed; `AppliedSyncOperation` is kept (rule 16); heart
+rate is stored as 5-minute aggregates and steps as hourly totals, not raw
+samples ([data flow](architecture/data-flow.md)); device usage is stored as
+30-minute category buckets without package names, as step 9 plans; Prisma has
+no down migrations, so each migration carries a hand-written `down.sql` checked
+in CI; constraints Prisma cannot express (ranges, present-or-missing, explanation
+shape, per-user composite foreign keys) are SQL in the migration. Tables for
+steps 4–14 exist but stay empty until their step; the
+[data inventory](privacy/data-inventory.md) marks them "schema only".
 
 **Step 4. Authentication and privacy.** Adopted as written. Changes: a decision
 note on authentication first (promised in 0008); the four consent types
@@ -125,3 +135,4 @@ steps 3–12 exists and is not required for the Android pilot.
 | --- | --- | --- |
 | 2026-11-27 | Copilot prompt 1 (architecture documents) | Merged. Platforms (Android first, NestJS, PostgreSQL; Next.js, iOS, Windows later), Health Connect and `UsageStatsManager`, and caffeine and exercise events adopted. Changes: decision notes numbered 0005–0008 in the existing `docs/architecture/NNNN-title.md` convention instead of `adr/001–003`; offline-first builds on existing note 0004 instead of duplicating it; added note 0008 for NestJS because it is a new dependency; Zepp Life corrected as unsupported (no direct Health Connect link). |
 | 2026-11-27 | Copilot prompts 2–17 | Merged into steps 2–17 above. Flutter and Prisma adopted (notes 0009 and 0010, superseding 0005 and parts of 0007 and 0008). Changes listed per step; security review moved before the pilot; decisions A and B open. |
+| 2026-11-27 | Copilot prompt 3 (data model), pasted in full | Implemented as step 3. Changes from the prompt: existing constraints and `AppliedSyncOperation` kept; aggregates instead of raw heart-rate samples; usage buckets without package names; hand-written `down.sql` for reversibility; calories, distance, HRV and oxygen saturation left out (rule 4). Prompt saved in [`docs/prompts`](prompts/prompt-03-data-model.md). |

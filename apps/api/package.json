@@ -7,6 +7,7 @@
   "scripts": {
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "npm run build && node --enable-source-maps dist/src/scripts/seed.js",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "npm run prisma:generate && npm run clean && tsc -p tsconfig.json",
     "typecheck": "npm run prisma:generate && tsc -p tsconfig.json --noEmit",
@@ -16,6 +17,7 @@
     "openapi:generate": "npm run build && node dist/src/scripts/generateOpenApi.js"
   },
   "dependencies": {
+    "@flowwave/core": "0.1.0",
     "@nestjs/common": "^12.6.3",
     "@nestjs/core": "^12.6.3",
     "@nestjs/platform-express": "^12.6.3",

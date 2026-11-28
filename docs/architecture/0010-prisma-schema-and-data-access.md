@@ -25,7 +25,8 @@ array containment checks.
 - The existing `db/migrations/0001_initial_schema` is ported into the first
   Prisma migration in the data-model phase (prompt 3), with every constraint
   and test preserved, and then removed from `db/migrations`. Until then both
-  exist and CI keeps verifying the SQL version.
+  exist and CI keeps verifying the SQL version. Done in step 3
+  ([0012](0012-data-model.md)).
 - Application code queries through Prisma Client; raw SQL is allowed only
   through Prisma's parameterized `$queryRaw` tagged template.
 

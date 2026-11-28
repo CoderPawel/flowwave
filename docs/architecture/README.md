@@ -26,6 +26,7 @@ it with a new one instead.
 | [0009](0009-flutter-mobile-app.md) | Flutter mobile app | Accepted |
 | [0010](0010-prisma-schema-and-data-access.md) | Prisma for the schema and data access | Accepted |
 | [0011](0011-monorepo-layout-and-tooling.md) | Monorepo layout and tooling | Accepted |
+| [0012](0012-data-model.md) | Data model | Accepted |
 
 ## Template
 
