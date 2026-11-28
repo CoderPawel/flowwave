@@ -24,7 +24,7 @@
   "privacyIntroConsent": "Nic nie jest odczytywane z innych aplikacji ani urządzeń, dopóki tego nie włączysz. W każdej chwili możesz zmienić zdanie.",
   "privacyIntroNoContent": "FlowWave nigdy nie zbiera tego, co piszesz, czytasz lub tworzysz: żadnych wiadomości, adresów stron, tytułów okien, nazw plików ani naciśnięć klawiszy.",
   "privacyIntroNotMedical": "FlowWave nie jest aplikacją medyczną. Jej szacunki nie są diagnozami i nie zastępują porady specjalisty.",
-  "privacyIntroAccount": "Konto jest opcjonalne. Z kontem masz kopię zapasową danych i w każdej chwili możesz je wyeksportować lub usunąć.",
+  "privacyIntroAccount": "Konto jest opcjonalne. Z kontem masz kopię zapasową danych i w każdej chwili możesz usunąć konto razem z danymi.",
 
   "consentTitle": "Wybierz, czego FlowWave może używać",
   "consentLead": "Wszystko jest wyłączone, dopóki tego nie włączysz. Na razie nic nie jest zbierane: każda funkcja użyje swoich danych dopiero wtedy, gdy pojawi się w aplikacji.",

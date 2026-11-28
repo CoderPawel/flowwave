@@ -85,7 +85,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get privacyIntroAccount =>
-      'Konto jest opcjonalne. Z kontem masz kopię zapasową danych i w każdej chwili możesz je wyeksportować lub usunąć.';
+      'Konto jest opcjonalne. Z kontem masz kopię zapasową danych i w każdej chwili możesz usunąć konto razem z danymi.';
 
   @override
   String get consentTitle => 'Wybierz, czego FlowWave może używać';

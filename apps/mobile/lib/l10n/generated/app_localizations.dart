@@ -227,7 +227,7 @@ abstract class AppLocalizations {
   /// Privacy point: optional account.
   ///
   /// In en, this message translates to:
-  /// **'An account is optional. With one, your data is backed up, and you can export or delete it at any time.'**
+  /// **'An account is optional. With one, your data is backed up, and you can delete the account and its data at any time.'**
   String get privacyIntroAccount;
 
   /// Title of the consent selection.

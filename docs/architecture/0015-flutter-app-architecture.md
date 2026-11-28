@@ -105,8 +105,10 @@ because the API accepts at most three fractional digits (rule 9).
   lists the Health Connect scopes; the screen says that nothing is read until
   a later version adds the import, and Health Connect itself is not added
   (prompt 5).
-- Consent text versions are duplicated in Dart; an API test fails when they
-  differ from `@flowwave/core`.
+- Consent policy versions and the "current decision" rule are duplicated in
+  Dart. Shared test vectors in `packages/core/test-vectors/consent-status.json`
+  are checked by both the TypeScript tests of `@flowwave/core` and the Dart
+  tests, so the two cannot drift apart unnoticed.
 
 ### Localization, theme, accessibility
 
@@ -120,18 +122,21 @@ because the API accepts at most three fractional digits (rule 9).
 ### Generated code
 
 Drift, Freezed, JSON and localization code is generated and committed, so a
-clean checkout analyzes and tests without a build step. CI regenerates it and
-fails if the result differs.
+clean checkout analyzes and tests without a build step. The Drift schema of
+each version is dumped to `drift_schemas/`. CI regenerates both and fails if
+the result differs.
 
 ## Dependencies
 
 | Dependency | Why it is required |
 | --- | --- |
 | `flutter_riverpod`, `go_router`, `dio`, `drift`, `freezed_annotation`, `json_annotation` | Chosen in [0009](0009-flutter-mobile-app.md); added now because step 5 first needs them. |
-| `drift_flutter` | Opens the Drift database in a background isolate at the app documents path; maintained with Drift. |
+| `drift_flutter` | Opens the Drift database in a background isolate; maintained with Drift. |
+| `sqlite3` | Already used by Drift; declared directly so its build hook can select SQLite3MultipleCiphers (`hooks: user_defines`) and so the app can verify that the cipher is active. |
+| `path_provider`, `path` | Locate the app support directory for the database file, so it can also be deleted after a lost key. |
 | `flutter_localizations`, `intl` | Flutter's localization support for Polish and English (part of the SDK and its standard companion). |
 | `flutter_timezone` | Flutter exposes only time zone abbreviations ("CET"); rule 9 needs the IANA name. |
-| `build_runner`, `drift_dev`, `freezed`, `json_serializable` (dev only) | Code generators for the libraries above. |
+| `build_runner`, `drift_dev`, `freezed`, `json_serializable` (dev only) | Code generators for the libraries above. `drift_dev` also dumps the schema to `apps/mobile/drift_schemas/`, which future migrations are tested against. |
 | `package:http` | Removed; replaced by Dio. |
 
 ## Consequences

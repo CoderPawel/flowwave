@@ -17,8 +17,8 @@ is collected.
 | 1 | Architecture documents | Yes | Done ([#2](https://github.com/CoderPawel/flowwave/pull/2)) |
 | 2 | Monorepo: API, web, mobile, contracts, analytics engine, Docker, CI | Yes | Done ([#3](https://github.com/CoderPawel/flowwave/pull/3), [0011](architecture/0011-monorepo-layout-and-tooling.md)) |
 | 3 | Data model in Prisma | Yes | Done ([#4](https://github.com/CoderPawel/flowwave/pull/4), [0012](architecture/0012-data-model.md), [data dictionary](data/data-dictionary.md)) |
-| 4 | Authentication, consent, export, deletion | Yes | Done in a pull request ([0013](architecture/0013-authentication-and-sessions.md), [0014](architecture/0014-consent-types-export-and-deletion.md)) |
-| 5 | Flutter app foundation | Yes | Planned |
+| 4 | Authentication, consent, export, deletion | Yes | Done ([#5](https://github.com/CoderPawel/flowwave/pull/5), [0013](architecture/0013-authentication-and-sessions.md), [0014](architecture/0014-consent-types-export-and-deletion.md)) |
+| 5 | Flutter app foundation | Yes | Done in a pull request ([0015](architecture/0015-flutter-app-architecture.md)) |
 | 6 | Self check-in | Yes | Planned |
 | 7 | Lifestyle events and focus sessions | Yes | Planned |
 | 8 | Health Connect | Yes | Planned |
@@ -96,7 +96,26 @@ from 0008. The phone has the authentication module but no sign-in screen yet:
 it is used by onboarding (step 5) and sync (step 10), and the app keeps working
 without an account.
 
-**Step 5. Flutter foundation.** Adopted as written.
+**Step 5. Flutter foundation.** Adopted: Riverpod, go_router, Dio, Drift on
+SQLite, Freezed and json_serializable, flutter_secure_storage, Material 3;
+feature-first layers with repository interfaces; an offline write queue with a
+sync service; one error mapping; Polish and English; light and dark themes;
+accessibility labels; all twelve screens; widget and repository tests
+([0015](architecture/0015-flutter-app-architecture.md)). Changes and
+additions: an account is optional and the whole app works without one, so
+registration and sign-in are offered at the end of onboarding and in Settings
+rather than forced at startup (rule 8); the local database is encrypted with
+SQLite3MultipleCiphers instead of SQLCipher (no OpenSSL in the APK), and a
+lost key leads to a reset only after the user confirms; Dio replaces
+`package:http` in the step 4 authentication module; consent decisions apply on
+the phone at once and are uploaded through the write queue when signed in;
+the health data consent lists Health Connect scopes but nothing is read and
+Health Connect is not added (step 8); the data and privacy screen offers
+deleting local data and the account, while downloading the server export
+waits for a later step; consent rules are checked against test vectors shared
+with `@flowwave/core`; generated code and the Drift schema are committed and
+checked in CI; a test fails if a column stored on the phone is missing from
+the data inventory.
 
 **Step 6. Check-in.** Adopted: energy, focus, and overload on a 1–10 scale, and
 the optional values. Changes: the existing energy estimate uses a 1–5 scale; it
@@ -152,3 +171,4 @@ steps 3–12 exists and is not required for the Android pilot.
 | 2026-11-27 | Copilot prompts 2–17 | Merged into steps 2–17 above. Flutter and Prisma adopted (notes 0009 and 0010, superseding 0005 and parts of 0007 and 0008). Changes listed per step; security review moved before the pilot; decisions A and B open. |
 | 2026-11-27 | Copilot prompt 3 (data model), pasted in full | Implemented as step 3. Changes from the prompt: existing constraints and `AppliedSyncOperation` kept; aggregates instead of raw heart-rate samples; usage buckets without package names; hand-written `down.sql` for reversibility; calories, distance, HRV and oxygen saturation left out (rule 4). Prompt saved in [`docs/prompts`](prompts/prompt-03-data-model.md). |
 | 2026-11-28 | Copilot prompt 4 (authentication and privacy), pasted in full | Implemented as step 4. Changes from the prompt: opaque hashed tokens instead of JWTs; in-memory rate limits; registration off by default in production; optional data deletion on consent withdrawal; retention job added; no sign-in screen until step 5. Prompt saved in [`docs/prompts`](prompts/prompt-04-auth-privacy.md). |
+| 2026-11-28 | Copilot prompt 5 (Flutter foundation), pasted in full | Implemented as step 5. Changes from the prompt: account optional; database encryption with SQLite3MultipleCiphers; Dio replaces `http`; consent applied on the phone at once and queued for upload; export download deferred; Health Connect not added. Prompt saved in [`docs/prompts`](prompts/prompt-05-flutter-foundation.md). |

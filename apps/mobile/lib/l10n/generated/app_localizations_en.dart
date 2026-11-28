@@ -84,7 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyIntroAccount =>
-      'An account is optional. With one, your data is backed up, and you can export or delete it at any time.';
+      'An account is optional. With one, your data is backed up, and you can delete the account and its data at any time.';
 
   @override
   String get consentTitle => 'Choose what FlowWave may use';

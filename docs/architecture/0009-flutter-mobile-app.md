@@ -1,6 +1,6 @@
 # 0009. Flutter mobile app
 
-- Status: Accepted
+- Status: Accepted; database encryption refined by [0015](0015-flutter-app-architecture.md) (SQLite3MultipleCiphers instead of SQLCipher)
 - Date: 2026-11-27
 - Supersedes: [0005](0005-android-first-native-kotlin.md) (UI stack); the Room, SQLCipher-for-Room, and WorkManager-from-Kotlin parts of [0007](0007-android-offline-first-storage.md)
 

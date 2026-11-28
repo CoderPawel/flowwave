@@ -45,7 +45,7 @@
   "@privacyIntroNoContent": {"description": "Privacy point: forbidden data (AGENTS.md rule 5)."},
   "privacyIntroNotMedical": "FlowWave is not a medical app. Its estimates are not diagnoses and do not replace advice from a professional.",
   "@privacyIntroNotMedical": {"description": "Privacy point: not a medical app (AGENTS.md rule 1)."},
-  "privacyIntroAccount": "An account is optional. With one, your data is backed up, and you can export or delete it at any time.",
+  "privacyIntroAccount": "An account is optional. With one, your data is backed up, and you can delete the account and its data at any time.",
   "@privacyIntroAccount": {"description": "Privacy point: optional account."},
 
   "consentTitle": "Choose what FlowWave may use",

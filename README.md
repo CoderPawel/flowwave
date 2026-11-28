@@ -145,9 +145,14 @@ flutter analyze
 flutter test
 flutter build apk --debug
 
+# After changing Drift tables, Freezed models or ARB files:
+dart run build_runner build && flutter gen-l10n
+
 # Point a debug build at a local API (Android emulator):
 flutter run --dart-define=FLOWWAVE_API_BASE_URL=http://10.0.2.2:3000/
 ```
+
+The app works without an account; see [`apps/mobile/README.md`](apps/mobile/README.md).
 
 ## Key behaviors
 
