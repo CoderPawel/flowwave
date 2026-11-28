@@ -138,7 +138,12 @@ export class ConsentService {
   }
 
   async loadLog(userId: string, reader: Reader = this.prisma): Promise<ConsentDecision[]> {
-    const rows = await reader.consent.findMany({ where: { userId }, select: CONSENT_SELECT });
+    // Core resolves equal decision times in favour of the later log entry, so the log is in recording order.
+    const rows = await reader.consent.findMany({
+      where: { userId },
+      select: CONSENT_SELECT,
+      orderBy: [{ decidedAtUtc: 'asc' }, { createdAtUtc: 'asc' }],
+    });
     return rows.map(toDecision);
   }
 
