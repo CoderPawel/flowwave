@@ -23,12 +23,13 @@ it with a new one instead.
 | [0006](0006-health-connect-wearable-gateway.md) | Health Connect as the only wearable gateway | Accepted |
 | [0007](0007-android-offline-first-storage.md) | Android offline-first storage and background work | Partly superseded by 0009 |
 | [0008](0008-nestjs-sync-api.md) | NestJS for the sync API | Accepted; database access superseded by 0010, export endpoint by 0014 |
-| [0009](0009-flutter-mobile-app.md) | Flutter mobile app | Accepted |
+| [0009](0009-flutter-mobile-app.md) | Flutter mobile app | Accepted; database encryption refined by 0015 |
 | [0010](0010-prisma-schema-and-data-access.md) | Prisma for the schema and data access | Accepted |
 | [0011](0011-monorepo-layout-and-tooling.md) | Monorepo layout and tooling | Accepted |
 | [0012](0012-data-model.md) | Data model | Accepted |
 | [0013](0013-authentication-and-sessions.md) | Authentication and sessions | Accepted |
 | [0014](0014-consent-types-export-and-deletion.md) | Consent types, data export, and account deletion | Accepted |
+| [0015](0015-flutter-app-architecture.md) | Flutter app architecture | Accepted |
 
 ## Template
 

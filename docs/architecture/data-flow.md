@@ -151,6 +151,12 @@ flowchart LR
   also have the data collected under it deleted.
 - Signing out deletes the tokens and all registered local account data on the
   phone ([0013](0013-authentication-and-sessions.md)).
+- On the phone, a change and its upload operation are written in one
+  transaction while sync is on; the operation ID is the record ID. Signing in
+  enqueues everything not uploaded yet. Network errors, `5xx` and `429` are
+  retried with backoff; refused changes (`400`, `403`, `404`, `409`, `422`)
+  stay visible on the data and privacy screen
+  ([0015](0015-flutter-app-architecture.md)).
 
 ## Time handling
 

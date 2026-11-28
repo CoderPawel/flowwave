@@ -98,7 +98,7 @@ guessing.
 | --- | --- |
 | `@node-rs/argon2` (API) | Argon2id is required by the prompt and is not in Node.js 22 `crypto`. Prebuilt binaries for Linux, Windows and macOS, no install scripts, no JavaScript dependencies. |
 | `flutter_secure_storage` (mobile) | Native secure storage (Android Keystore), required by the prompt; Flutter has no built-in equivalent. |
-| `http` (mobile) | HTTP client for the API, maintained by the Dart team; `dart:io` `HttpClient` lacks the testing support (`MockClient`) the refresh logic needs. |
+| `http` (mobile) | HTTP client for the API, maintained by the Dart team; `dart:io` `HttpClient` lacks the testing support (`MockClient`) the refresh logic needs. Replaced by Dio in step 5 ([0015](0015-flutter-app-architecture.md)). |
 
 ## Consequences
 

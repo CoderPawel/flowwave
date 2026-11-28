@@ -271,6 +271,53 @@ The import repositories refuse new data the moment the matching consent is
 missing, withdrawn, or granted under an older consent text. Withdrawing can
 also delete the data already collected for that type.
 
+## On the phone
+
+The Android app keeps its own encrypted SQLite database
+([0015](../architecture/0015-flutter-app-architecture.md)). The file is
+encrypted with SQLite3MultipleCiphers (ChaCha20-Poly1305); Android backup is
+disabled, so neither the database nor its key leaves the phone. "Delete data
+on this phone" in the app signs out and empties every table below; the
+database key, which protects nothing once the tables are empty, stays. Signing
+out removes the account data (consent decisions and the write queue) and keeps
+the preferences.
+`apps/mobile/test/core/database/data_inventory_test.dart` fails if a local
+column is missing here.
+
+### Phone table `local_settings`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `id` | Low | App | Storage | Collected | Always 1: the table has exactly one row. |
+| `theme_preference`, `language_preference` | Low | User | Settings | Collected | Light or dark theme and app language, or "follow the system". |
+| `onboarding_completed_at_utc` | Low | App | First start | Collected | Shows the welcome flow only once. |
+
+### Phone table `consent_decisions`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `id`, `consent_type`, `source_id`, `state`, `scopes`, `policy_version` | Consent record | User | Consent | Collected | The user's decisions, applied on the phone at once and uploaded when signed in. Same fields as the server table. |
+| `decided_at_utc`, `decided_time_zone`, `decided_utc_offset_minutes` | Low | Device clock and time zone | Consent | Collected | When the decision was made (rule 9). |
+| `synced_at_utc` | Low | App | Sync | Collected | Whether the server has the decision. |
+
+### Phone table `outbox_operations`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `id`, `kind`, `payload` | Same as the queued record | App | Offline write queue | Collected | A change waiting for upload; the ID is the record ID, so uploads are idempotent. Today only consent decisions are queued. |
+| `created_at_utc`, `attempts`, `next_attempt_at_utc`, `status` | Low | App | Offline write queue | Collected | Order, retry with backoff, and refused changes. |
+| `last_error` | Low | App | Offline write queue | Collected | A stable error code such as `validation_failed:scopes`; never a server message or record content. |
+
+### Phone secure storage
+
+Kept in `flutter_secure_storage` (Android Keystore), never in preferences or
+files:
+
+| Key | Contents | Removed |
+| --- | --- | --- |
+| `flowwave.auth.tokens.v1` | Access and refresh token with their expiry times | At sign-out and account deletion. |
+| `flowwave.database.key.v1` | Random 256-bit key of the local database | When local data is deleted after a lost key; otherwise kept with the app. |
+
 ## Held in memory only
 
 The rate limiter keeps a counter per client IP address and per hashed email

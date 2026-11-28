@@ -1,0 +1,15 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # ISO 8601 text keeps milliseconds and the UTC marker; the default
+          # Unix seconds would drop both (rule 9).
+          store_date_time_values_as_text: true
+          databases:
+            flowwave: lib/src/core/database/app_database.dart
+          schema_dir: drift_schemas/
+      json_serializable:
+        options:
+          # Nested values such as ZonedTimestamp become plain maps.
+          explicit_to_json: true

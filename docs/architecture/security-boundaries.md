@@ -52,7 +52,7 @@ flowchart TB
 | B0 | Xiaomi to Health Connect | Sleep, steps, heart rate written by Mi Fitness | Outside FlowWave's control. FlowWave never talks to the band or the Xiaomi cloud. |
 | B1 | Health Connect to app | Only the record types the user granted | Per-type Health Connect permissions; matching consent decision in the core consent log; read-only; permission rationale screen as required by Health Connect; background and history permissions requested only when the feature needs them. |
 | B2 | UsageStatsManager to app | Screen on/off and unlock events | Usage access granted by the user in system settings; only three event types are used; package names are never persisted ([data flow](data-flow.md#screen-use-aggregation)). |
-| B3 | App to on-device storage | All user data | Database encrypted with a key held in Android Keystore (library chosen in [0007](0007-android-offline-first-storage.md)); excluded from Android cloud backup and device-to-device transfer; no health data in shared storage, logs, or notifications' lock-screen content. |
+| B3 | App to on-device storage | All user data | Database encrypted with SQLite3MultipleCiphers (ChaCha20-Poly1305) and a random 256-bit key kept in `flutter_secure_storage` (Android Keystore); the app refuses to open the database when the cipher is not active ([0015](0015-flutter-app-architecture.md)); excluded from Android cloud backup and device-to-device transfer; no health data in shared storage, logs, or notifications' lock-screen content. |
 | B4 | App to network | Sync operations, auth tokens | Only when the user turned on sync; HTTPS with TLS 1.2+; no cleartext traffic in release builds (debug builds allow plain HTTP only to `10.0.2.2` and `localhost`); 15-minute opaque access tokens and single-use refresh tokens kept in `flutter_secure_storage` (Android Keystore; iOS Keychain, this device only); payloads checked by the privacy guard before upload. |
 | B5 | API to database | Validated operations | Every route except health probes requires an access token; the user ID comes from the token, never from the request; server re-validates every payload (`parseSyncOperation`, privacy guard); per-user row scoping in every query plus composite foreign keys; only password hashes (Argon2id) and token hashes (SHA-256) are stored; database role with least privilege (no superuser, no DDL at runtime); encryption at rest and encrypted backups. |
 | B6 | Logs, crash reports, analytics | Diagnostics | No third-party analytics or advertising SDKs in the MVP; logs and crash reports contain no health values, no tokens, and no identifiers beyond a random installation ID. |
@@ -61,7 +61,7 @@ flowchart TB
 
 Implemented in step 4 ([0013](0013-authentication-and-sessions.md),
 [0014](0014-consent-types-export-and-deletion.md)) and covered by tests in
-`apps/api/test` and `apps/mobile/test/auth`. Items marked *recommended* are
+`apps/api/test` and `apps/mobile/test/features/auth`. Items marked *recommended* are
 not implemented yet.
 
 | Control | Status |
@@ -78,6 +78,27 @@ not implemented yet.
 | Email verification, password reset, multi-factor sign-in | *Recommended* before an open launch; needs email delivery |
 | Shared rate-limit store | *Recommended* before running more than one API instance |
 | Breached-password check | *Recommended*; needs a privacy-preserving lookup decision |
+
+## Mobile app controls
+
+Implemented in step 5 ([0015](0015-flutter-app-architecture.md)) and covered
+by tests in `apps/mobile/test`. Items marked *recommended* are not
+implemented yet.
+
+| Control | Status |
+| --- | --- |
+| Local database encrypted; key in Android Keystore-backed secure storage; no unencrypted fallback | Implemented |
+| A wrong or lost key is detected; local data is reset only after the user confirms | Implemented |
+| Android backup disabled for the database and the key | Implemented |
+| Nothing leaves the phone without an account; consent applies on the phone at once | Implemented |
+| Upload queue keyed by record ID (idempotent); refused changes stay visible, never retried silently | Implemented |
+| Sign-out deletes tokens and account data, warning about changes not uploaded yet | Implemented |
+| Screens show localized messages for each failure type, never raw server messages; stored errors are stable codes | Implemented |
+| Every column stored on the phone is listed in the data inventory (checked by a test) | Implemented |
+| Screenshot blocking (`FLAG_SECURE`) on screens with health data | *Recommended* once such screens exist (steps 6–13) |
+| App lock (device credential or biometrics) | *Recommended* before the pilot; needs a decision on recovery |
+| Certificate pinning | *Recommended* to evaluate in the security review (step 17) |
+| Export of phone-only data | *Recommended*; planned with the first phone-only data |
 
 ## Threats and mitigations
 

@@ -1,0 +1,178 @@
+{
+  "description": "Consent status cases shared by @flowwave/core and the Flutter app (decisions 0009 and 0015). Each case gives an append-only decision log in recording order and the expected status for one subject. When two decisions have the same decidedAt, the one recorded later wins.",
+  "currentPolicyVersions": {
+    "health_data": "2026-11-26",
+    "device_usage": "2026-11-28",
+    "notifications": "2026-11-28",
+    "analytics": "2026-11-28"
+  },
+  "healthDataSources": {
+    "apple_health": ["sleep_duration", "steps", "heart_rate", "resting_heart_rate"],
+    "health_connect": ["sleep_duration", "steps", "heart_rate", "resting_heart_rate"]
+  },
+  "cases": [
+    {
+      "name": "never asked",
+      "subject": { "type": "analytics", "sourceId": null },
+      "log": [],
+      "expected": { "status": "not_asked", "scopes": [] }
+    },
+    {
+      "name": "granted under the current text",
+      "subject": { "type": "notifications", "sourceId": null },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1001",
+          "type": "notifications",
+          "sourceId": null,
+          "state": "granted",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "granted", "scopes": [] }
+    },
+    {
+      "name": "a later withdrawal wins",
+      "subject": { "type": "device_usage", "sourceId": null },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1002",
+          "type": "device_usage",
+          "sourceId": null,
+          "state": "granted",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        },
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1003",
+          "type": "device_usage",
+          "sourceId": null,
+          "state": "revoked",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T10:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "revoked", "scopes": [] }
+    },
+    {
+      "name": "order is by decision time, not by recording order",
+      "subject": { "type": "device_usage", "sourceId": null },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1004",
+          "type": "device_usage",
+          "sourceId": null,
+          "state": "revoked",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T08:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        },
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1005",
+          "type": "device_usage",
+          "sourceId": null,
+          "state": "granted",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T07:59:59.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "revoked", "scopes": [] }
+    },
+    {
+      "name": "the same decision time: the decision recorded later wins",
+      "subject": { "type": "analytics", "sourceId": null },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1006",
+          "type": "analytics",
+          "sourceId": null,
+          "state": "revoked",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        },
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1007",
+          "type": "analytics",
+          "sourceId": null,
+          "state": "granted",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "granted", "scopes": [] }
+    },
+    {
+      "name": "a grant under an older text is outdated",
+      "subject": { "type": "health_data", "sourceId": "health_connect" },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1008",
+          "type": "health_data",
+          "sourceId": "health_connect",
+          "state": "granted",
+          "scopes": ["steps"],
+          "policyVersion": "2026-01-01",
+          "decidedAt": { "utc": "2026-11-20T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "outdated", "scopes": [] }
+    },
+    {
+      "name": "health data decisions are per source",
+      "subject": { "type": "health_data", "sourceId": "health_connect" },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1009",
+          "type": "health_data",
+          "sourceId": "health_connect",
+          "state": "granted",
+          "scopes": ["heart_rate", "steps"],
+          "policyVersion": "2026-11-26",
+          "decidedAt": { "utc": "2026-11-28T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        },
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1010",
+          "type": "health_data",
+          "sourceId": "apple_health",
+          "state": "revoked",
+          "scopes": [],
+          "policyVersion": "2026-11-26",
+          "decidedAt": { "utc": "2026-11-28T10:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "granted", "scopes": ["heart_rate", "steps"] }
+    },
+    {
+      "name": "time zones do not change the order of instants",
+      "subject": { "type": "notifications", "sourceId": null },
+      "log": [
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1011",
+          "type": "notifications",
+          "sourceId": null,
+          "state": "granted",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T09:30:00.000Z", "timeZone": "America/New_York", "utcOffsetMinutes": -300 }
+        },
+        {
+          "id": "6d9c0a3e-0c1f-4b8e-9a51-2a6f0f8d1012",
+          "type": "notifications",
+          "sourceId": null,
+          "state": "revoked",
+          "scopes": [],
+          "policyVersion": "2026-11-28",
+          "decidedAt": { "utc": "2026-11-28T09:00:00.000Z", "timeZone": "Europe/Budapest", "utcOffsetMinutes": 60 }
+        }
+      ],
+      "expected": { "status": "granted", "scopes": [] }
+    }
+  ]
+}
