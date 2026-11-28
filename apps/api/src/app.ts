@@ -11,6 +11,13 @@ export const API_PREFIX = 'v1';
 /** Applies the global HTTP setup shared by the server, tests, and the OpenAPI generator. */
 export function configureApp(app: INestApplication, config: AppConfig): INestApplication {
   app.useLogger(app.get(Logger));
+  if (config.trustProxyHops > 0) {
+    // request.ip (used for rate limits) is then taken from X-Forwarded-For, trusting this many proxies.
+    (app.getHttpAdapter().getInstance() as { set(name: string, value: unknown): void }).set(
+      'trust proxy',
+      config.trustProxyHops,
+    );
+  }
   app.setGlobalPrefix(API_PREFIX);
   app.useGlobalPipes(
     new ValidationPipe({

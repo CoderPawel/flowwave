@@ -13,6 +13,10 @@ const GENERATOR_CONFIG: AppConfig = {
   logLevel: 'silent',
   swaggerEnabled: false,
   corsOrigins: [],
+  auth: { accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30, registrationEnabled: false },
+  trustProxyHops: 0,
+  rateLimitEnabled: true,
+  backgroundJobsEnabled: false,
 };
 
 const here = dirname(fileURLToPath(import.meta.url));

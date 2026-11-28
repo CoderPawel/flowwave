@@ -1,5 +1,7 @@
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiProperty, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/authGuard.js';
+import { RateLimit } from '../rateLimit/rateLimitGuard.js';
 import { DatabaseHealth } from './databaseHealth.js';
 
 export class LivenessResponse {
@@ -25,6 +27,8 @@ interface StatusSetter {
 }
 
 @ApiTags('health')
+@Public()
+@RateLimit(null)
 @Controller('health')
 export class HealthController {
   constructor(private readonly database: DatabaseHealth) {}

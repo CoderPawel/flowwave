@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { assertNoForbiddenFields, isMissingReason, ValidationError, type MissingReason, type ZonedTimestamp } from '@flowwave/core';
+import { ConsentService } from '../consent/consentService.js';
 import { PrismaService } from '../prisma/prismaService.js';
 import { importIdempotently, type ImportResult } from './idempotentImport.js';
 import { requireActiveDevice, requireUuid } from './ownership.js';
@@ -38,12 +39,16 @@ export interface DeviceUsageBucketImport {
 
 @Injectable()
 export class DeviceUsageBucketRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly consents: ConsentService,
+  ) {}
 
   async importBucket(userId: string, bucket: DeviceUsageBucketImport): Promise<ImportResult> {
     assertNoForbiddenFields(bucket);
     requireUuid('userId', userId);
     await requireActiveDevice(this.prisma, userId, bucket.deviceId);
+    await this.consents.assertDeviceUsageConsent(userId);
 
     const bucketStart = zonedColumns('bucketStart', bucket.bucketStart);
     const idempotencyKey = requireNonBlank('idempotencyKey', bucket.idempotencyKey);

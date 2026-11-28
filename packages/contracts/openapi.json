@@ -54,6 +54,505 @@
           "health"
         ]
       }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An account with this email already exists."
+          },
+          "429": {
+            "description": ""
+          }
+        },
+        "summary": "Create an account with email and password (development authentication, decision 0013).",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": ""
+          },
+          "429": {
+            "description": ""
+          }
+        },
+        "summary": "Sign in. Wrong passwords and unknown emails get the same 401.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": ""
+          }
+        },
+        "summary": "Exchange a refresh token for a new pair. Reusing a refresh token signs the device out.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sign out this device.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/logout-all": {
+      "post": {
+        "operationId": "AuthController_logoutAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutAllResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sign out every device of this account, including this one.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sessions": {
+      "get": {
+        "operationId": "AuthController_sessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SessionResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Devices currently signed in to this account.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sessions/{sessionId}/revoke": {
+      "post": {
+        "operationId": "AuthController_revokeSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sign out another device of this account.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/consents": {
+      "get": {
+        "operationId": "ConsentController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentStatusResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Current consent for health data (per source), device usage, notifications, and analytics.",
+        "tags": [
+          "consents"
+        ]
+      },
+      "post": {
+        "operationId": "ConsentController_record",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordConsentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Already recorded; nothing changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordConsentResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordConsentResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Grant or withdraw consent. A withdrawal stops collection at once and can delete the data collected so far.",
+        "tags": [
+          "consents"
+        ]
+      }
+    },
+    "/v1/consents/history": {
+      "get": {
+        "operationId": "ConsentController_history",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentDecisionResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Every consent decision of this account, newest first. Decisions are never changed.",
+        "tags": [
+          "consents"
+        ]
+      }
+    },
+    "/v1/account": {
+      "get": {
+        "operationId": "AccountController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The signed-in account.",
+        "tags": [
+          "account"
+        ]
+      },
+      "delete": {
+        "operationId": "AccountController_delete",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionReceiptResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong password."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete the account and all its data at once. Requires the current password; cannot be undone.",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/exports": {
+      "post": {
+        "operationId": "AccountController_requestExport",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "An export is already queued or running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Request a JSON export of all account data. Returns the open job if one exists.",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/exports/{exportId}": {
+      "get": {
+        "operationId": "AccountController_getExport",
+        "parameters": [
+          {
+            "name": "exportId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Status of an export job.",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/exports/{exportId}/download": {
+      "get": {
+        "operationId": "AccountController_download",
+        "parameters": [
+          {
+            "name": "exportId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The export file.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not ready yet, or expired."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download a completed export (format flowwave-account-export, version 1).",
+        "tags": [
+          "account"
+        ]
+      }
     }
   },
   "info": {
@@ -65,6 +564,14 @@
   "tags": [],
   "servers": [],
   "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "type": "http",
+        "description": "Access token (prefix fwat_) from /v1/auth/login."
+      }
+    },
     "schemas": {
       "LivenessResponse": {
         "type": "object",
@@ -115,6 +622,547 @@
         "required": [
           "status",
           "checks"
+        ]
+      },
+      "DeviceInfoDto": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android",
+              "ios",
+              "web",
+              "windows"
+            ],
+            "example": "android"
+          },
+          "appVersion": {
+            "type": "string",
+            "example": "0.1.0",
+            "maxLength": 32
+          }
+        },
+        "required": [
+          "platform"
+        ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "tester@example.org",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 128,
+            "format": "password"
+          },
+          "homeTimeZone": {
+            "type": "string",
+            "example": "Europe/Budapest",
+            "description": "IANA time zone used to group days."
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceInfoDto"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "homeTimeZone",
+          "device"
+        ]
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "tokenType": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Short-lived access token (prefix fwat_)."
+          },
+          "accessTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Single-use refresh token (prefix fwrt_). Store only in secure storage."
+          },
+          "refreshTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "tokenType",
+          "accessToken",
+          "accessTokenExpiresAt",
+          "refreshToken",
+          "refreshTokenExpiresAt",
+          "userId",
+          "sessionId",
+          "deviceId"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "tester@example.org",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "maxLength": 512
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceInfoDto"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "device"
+        ]
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Single-use refresh token (prefix fwrt_)."
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "LogoutAllResponse": {
+        "type": "object",
+        "properties": {
+          "sessionsRevoked": {
+            "type": "number",
+            "example": 2
+          }
+        },
+        "required": [
+          "sessionsRevoked"
+        ]
+      },
+      "SessionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android",
+              "ios",
+              "web",
+              "windows"
+            ]
+          },
+          "appVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastRefreshedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "current": {
+            "type": "boolean",
+            "description": "True for the session making this request."
+          }
+        },
+        "required": [
+          "id",
+          "deviceId",
+          "platform",
+          "appVersion",
+          "createdAt",
+          "lastRefreshedAt",
+          "current"
+        ]
+      },
+      "ZonedTimestampDto": {
+        "type": "object",
+        "properties": {
+          "utc": {
+            "type": "string",
+            "example": "2026-11-28T09:00:00.000Z",
+            "description": "UTC instant ending in Z."
+          },
+          "timeZone": {
+            "type": "string",
+            "example": "Europe/Budapest"
+          },
+          "utcOffsetMinutes": {
+            "type": "number",
+            "example": 60,
+            "description": "Offset in minutes in effect in timeZone at utc."
+          }
+        },
+        "required": [
+          "utc",
+          "timeZone",
+          "utcOffsetMinutes"
+        ]
+      },
+      "ConsentStatusResponse": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "health_data",
+              "device_usage",
+              "notifications",
+              "analytics"
+            ]
+          },
+          "sourceId": {
+            "type": "string",
+            "enum": [
+              "apple_health",
+              "health_connect"
+            ],
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "granted",
+              "revoked",
+              "not_asked",
+              "outdated"
+            ],
+            "description": "outdated: granted under an older consent text; ask again."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "policyVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "currentPolicyVersion": {
+            "type": "string"
+          },
+          "decidedAt": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ZonedTimestampDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "sourceId",
+          "status",
+          "scopes",
+          "policyVersion",
+          "currentPolicyVersion",
+          "decidedAt"
+        ]
+      },
+      "ConsentDecisionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "health_data",
+              "device_usage",
+              "notifications",
+              "analytics"
+            ]
+          },
+          "sourceId": {
+            "type": "string",
+            "enum": [
+              "apple_health",
+              "health_connect"
+            ],
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "granted",
+              "revoked"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "decidedAt": {
+            "$ref": "#/components/schemas/ZonedTimestampDto"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "sourceId",
+          "state",
+          "scopes",
+          "policyVersion",
+          "decidedAt"
+        ]
+      },
+      "RecordConsentRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Generated on the device; repeating the same decision is safe."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "health_data",
+              "device_usage",
+              "notifications",
+              "analytics"
+            ]
+          },
+          "sourceId": {
+            "type": "string",
+            "enum": [
+              "apple_health",
+              "health_connect"
+            ],
+            "nullable": true,
+            "description": "Required for health_data; absent for other types."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "granted",
+              "revoked"
+            ]
+          },
+          "scopes": {
+            "example": [
+              "steps",
+              "heart_rate"
+            ],
+            "description": "Health data scopes; empty otherwise.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "policyVersion": {
+            "type": "string",
+            "example": "2026-11-28",
+            "description": "Version of the consent text the user saw."
+          },
+          "decidedAt": {
+            "$ref": "#/components/schemas/ZonedTimestampDto"
+          },
+          "deleteCollectedData": {
+            "type": "boolean",
+            "description": "With a withdrawal of health_data or device_usage: also delete the data collected so far."
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "state",
+          "scopes",
+          "policyVersion",
+          "decidedAt"
+        ]
+      },
+      "RecordConsentResponse": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ConsentDecisionResponse"
+          },
+          "replayed": {
+            "type": "boolean",
+            "description": "True when this decision had already been recorded."
+          },
+          "deletedRecords": {
+            "type": "number",
+            "description": "Records deleted because of deleteCollectedData."
+          }
+        },
+        "required": [
+          "decision",
+          "replayed",
+          "deletedRecords"
+        ]
+      },
+      "AccountResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "homeTimeZone": {
+            "type": "string",
+            "example": "Europe/Budapest"
+          },
+          "sleepGoalMinutes": {
+            "type": "number",
+            "nullable": true,
+            "description": "Null until the user sets a goal."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "email",
+          "homeTimeZone",
+          "sleepGoalMinutes",
+          "createdAt"
+        ]
+      },
+      "DeleteAccountRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "format": "password",
+            "description": "Current password, required to confirm deletion."
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "DeletionReceiptResponse": {
+        "type": "object",
+        "properties": {
+          "receiptId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Keep this ID as proof of deletion."
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "receiptId",
+          "deletedAt"
+        ]
+      },
+      "ExportJobResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "expired"
+            ]
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "The download is removed after this."
+          },
+          "failureCode": {
+            "type": "string",
+            "nullable": true,
+            "example": "export_failed"
+          },
+          "resultBytes": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "requestedAt",
+          "completedAt",
+          "expiresAt",
+          "failureCode",
+          "resultBytes"
         ]
       }
     }

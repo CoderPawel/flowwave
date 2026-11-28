@@ -38,6 +38,229 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create an account with email and password (development authentication, decision 0013). */
+        post: operations["AuthController_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign in. Wrong passwords and unknown emails get the same 401. */
+        post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange a refresh token for a new pair. Reusing a refresh token signs the device out. */
+        post: operations["AuthController_refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign out this device. */
+        post: operations["AuthController_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign out every device of this account, including this one. */
+        post: operations["AuthController_logoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devices currently signed in to this account. */
+        get: operations["AuthController_sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sessions/{sessionId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign out another device of this account. */
+        post: operations["AuthController_revokeSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current consent for health data (per source), device usage, notifications, and analytics. */
+        get: operations["ConsentController_status"];
+        put?: never;
+        /** Grant or withdraw consent. A withdrawal stops collection at once and can delete the data collected so far. */
+        post: operations["ConsentController_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/consents/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every consent decision of this account, newest first. Decisions are never changed. */
+        get: operations["ConsentController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in account. */
+        get: operations["AccountController_get"];
+        put?: never;
+        post?: never;
+        /** Delete the account and all its data at once. Requires the current password; cannot be undone. */
+        delete: operations["AccountController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request a JSON export of all account data. Returns the open job if one exists. */
+        post: operations["AccountController_requestExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/exports/{exportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status of an export job. */
+        get: operations["AccountController_getExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/exports/{exportId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download a completed export (format flowwave-account-export, version 1). */
+        get: operations["AccountController_download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -63,6 +286,201 @@ export interface components {
              */
             status: "ok" | "unavailable";
             checks: components["schemas"]["ReadinessChecks"];
+        };
+        DeviceInfoDto: {
+            /**
+             * @example android
+             * @enum {string}
+             */
+            platform: "android" | "ios" | "web" | "windows";
+            /** @example 0.1.0 */
+            appVersion?: string;
+        };
+        RegisterRequest: {
+            /** @example tester@example.org */
+            email: string;
+            /** Format: password */
+            password: string;
+            /**
+             * @description IANA time zone used to group days.
+             * @example Europe/Budapest
+             */
+            homeTimeZone: string;
+            device: components["schemas"]["DeviceInfoDto"];
+        };
+        TokenResponse: {
+            /** @enum {string} */
+            tokenType: "Bearer";
+            /** @description Short-lived access token (prefix fwat_). */
+            accessToken: string;
+            /** Format: date-time */
+            accessTokenExpiresAt: string;
+            /** @description Single-use refresh token (prefix fwrt_). Store only in secure storage. */
+            refreshToken: string;
+            /** Format: date-time */
+            refreshTokenExpiresAt: string;
+            /** Format: uuid */
+            userId: string;
+            /** Format: uuid */
+            sessionId: string;
+            /** Format: uuid */
+            deviceId: string;
+        };
+        LoginRequest: {
+            /** @example tester@example.org */
+            email: string;
+            /** Format: password */
+            password: string;
+            device: components["schemas"]["DeviceInfoDto"];
+        };
+        RefreshRequest: {
+            /** @description Single-use refresh token (prefix fwrt_). */
+            refreshToken: string;
+        };
+        LogoutAllResponse: {
+            /** @example 2 */
+            sessionsRevoked: number;
+        };
+        SessionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            deviceId: string;
+            /** @enum {string} */
+            platform: "android" | "ios" | "web" | "windows";
+            appVersion: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastRefreshedAt: string | null;
+            /** @description True for the session making this request. */
+            current: boolean;
+        };
+        ZonedTimestampDto: {
+            /**
+             * @description UTC instant ending in Z.
+             * @example 2026-11-28T09:00:00.000Z
+             */
+            utc: string;
+            /** @example Europe/Budapest */
+            timeZone: string;
+            /**
+             * @description Offset in minutes in effect in timeZone at utc.
+             * @example 60
+             */
+            utcOffsetMinutes: number;
+        };
+        ConsentStatusResponse: {
+            /** @enum {string} */
+            type: "health_data" | "device_usage" | "notifications" | "analytics";
+            /** @enum {string|null} */
+            sourceId: "apple_health" | "health_connect" | null;
+            /**
+             * @description outdated: granted under an older consent text; ask again.
+             * @enum {string}
+             */
+            status: "granted" | "revoked" | "not_asked" | "outdated";
+            scopes: string[];
+            policyVersion: string | null;
+            currentPolicyVersion: string;
+            decidedAt: components["schemas"]["ZonedTimestampDto"] | null;
+        };
+        ConsentDecisionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "health_data" | "device_usage" | "notifications" | "analytics";
+            /** @enum {string|null} */
+            sourceId: "apple_health" | "health_connect" | null;
+            /** @enum {string} */
+            state: "granted" | "revoked";
+            scopes: string[];
+            policyVersion: string;
+            decidedAt: components["schemas"]["ZonedTimestampDto"];
+        };
+        RecordConsentRequest: {
+            /**
+             * Format: uuid
+             * @description Generated on the device; repeating the same decision is safe.
+             */
+            id: string;
+            /** @enum {string} */
+            type: "health_data" | "device_usage" | "notifications" | "analytics";
+            /**
+             * @description Required for health_data; absent for other types.
+             * @enum {string|null}
+             */
+            sourceId?: "apple_health" | "health_connect" | null;
+            /** @enum {string} */
+            state: "granted" | "revoked";
+            /**
+             * @description Health data scopes; empty otherwise.
+             * @example [
+             *       "steps",
+             *       "heart_rate"
+             *     ]
+             */
+            scopes: string[];
+            /**
+             * @description Version of the consent text the user saw.
+             * @example 2026-11-28
+             */
+            policyVersion: string;
+            decidedAt: components["schemas"]["ZonedTimestampDto"];
+            /** @description With a withdrawal of health_data or device_usage: also delete the data collected so far. */
+            deleteCollectedData?: boolean;
+        };
+        RecordConsentResponse: {
+            decision: components["schemas"]["ConsentDecisionResponse"];
+            /** @description True when this decision had already been recorded. */
+            replayed: boolean;
+            /** @description Records deleted because of deleteCollectedData. */
+            deletedRecords: number;
+        };
+        AccountResponse: {
+            /** Format: uuid */
+            userId: string;
+            email: string | null;
+            /** @example Europe/Budapest */
+            homeTimeZone: string;
+            /** @description Null until the user sets a goal. */
+            sleepGoalMinutes: number | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        DeleteAccountRequest: {
+            /**
+             * Format: password
+             * @description Current password, required to confirm deletion.
+             */
+            password: string;
+        };
+        DeletionReceiptResponse: {
+            /**
+             * Format: uuid
+             * @description Keep this ID as proof of deletion.
+             */
+            receiptId: string;
+            /** Format: date-time */
+            deletedAt: string;
+        };
+        ExportJobResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "running" | "completed" | "failed" | "expired";
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+            /**
+             * Format: date-time
+             * @description The download is removed after this.
+             */
+            expiresAt: string | null;
+            /** @example export_failed */
+            failureCode: string | null;
+            resultBytes: number | null;
         };
     };
     responses: never;
@@ -116,6 +534,379 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
+            };
+        };
+    };
+    AuthController_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description An account with this email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_logoutAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogoutAllResponse"];
+                };
+            };
+        };
+    };
+    AuthController_sessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"][];
+                };
+            };
+        };
+    };
+    AuthController_revokeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConsentController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentStatusResponse"][];
+                };
+            };
+        };
+    };
+    ConsentController_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordConsentRequest"];
+            };
+        };
+        responses: {
+            /** @description Already recorded; nothing changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordConsentResponse"];
+                };
+            };
+            /** @description Recorded. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordConsentResponse"];
+                };
+            };
+        };
+    };
+    ConsentController_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentDecisionResponse"][];
+                };
+            };
+        };
+    };
+    AccountController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountResponse"];
+                };
+            };
+        };
+    };
+    AccountController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteAccountRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionReceiptResponse"];
+                };
+            };
+            /** @description Wrong password. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountController_requestExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An export is already queued or running. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobResponse"];
+                };
+            };
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobResponse"];
+                };
+            };
+        };
+    };
+    AccountController_getExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportJobResponse"];
+                };
+            };
+        };
+    };
+    AccountController_download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exportId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Not ready yet, or expired. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

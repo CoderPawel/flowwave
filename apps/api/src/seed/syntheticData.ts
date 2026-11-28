@@ -1,6 +1,14 @@
 import { createHash } from 'node:crypto';
-import { createZonedTimestamp, ENERGY_ESTIMATE_DISCLAIMER, type ZonedTimestamp } from '@flowwave/core';
+import {
+  createZonedTimestamp,
+  CURRENT_CONSENT_POLICY_VERSIONS,
+  ENERGY_ESTIMATE_DISCLAIMER,
+  type ZonedTimestamp,
+} from '@flowwave/core';
 import type { PrismaClient } from '../../generated/prisma/client.js';
+import { AuditService } from '../audit/auditService.js';
+import { systemClock } from '../common/clock.js';
+import { ConsentService } from '../consent/consentService.js';
 import { DeviceUsageBucketRepository } from '../importedRecords/deviceUsageBucketRepository.js';
 import { HealthSampleRepository } from '../importedRecords/healthSampleRepository.js';
 import type { ImportOutcome } from '../importedRecords/idempotentImport.js';
@@ -79,9 +87,20 @@ export async function seedSyntheticData(prisma: PrismaService): Promise<SeedSumm
     update: {},
   });
 
-  const samples = new HealthSampleRepository(prisma);
-  const sleep = new SleepSessionRepository(prisma);
-  const usage = new DeviceUsageBucketRepository(prisma);
+  // The synthetic source needs no consent; device usage always does (decision 0014).
+  const consents = new ConsentService(prisma, new AuditService(prisma), systemClock);
+  await consents.record(userId, {
+    id: syntheticId('consent:device_usage'),
+    type: 'device_usage',
+    state: 'granted',
+    scopes: [],
+    policyVersion: CURRENT_CONSENT_POLICY_VERSIONS.device_usage,
+    decidedAt: at('2026-11-28T00:00:00Z'),
+  });
+
+  const samples = new HealthSampleRepository(prisma, consents);
+  const sleep = new SleepSessionRepository(prisma, consents);
+  const usage = new DeviceUsageBucketRepository(prisma, consents);
   const importedAt = new Date('2026-11-26T00:00:00Z');
 
   for (const [dayIndex, day] of DAYS.entries()) {

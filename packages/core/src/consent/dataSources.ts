@@ -19,11 +19,11 @@ export interface ExternalDataSourceDefinition {
 export const EXTERNAL_DATA_SOURCES = {
   apple_health: {
     displayName: 'Apple Health',
-    scopes: ['sleep_duration'],
+    scopes: ['sleep_duration', 'steps', 'heart_rate', 'resting_heart_rate'],
   },
   health_connect: {
     displayName: 'Health Connect',
-    scopes: ['sleep_duration'],
+    scopes: ['sleep_duration', 'steps', 'heart_rate', 'resting_heart_rate'],
   },
 } as const satisfies Record<string, ExternalDataSourceDefinition>;
 

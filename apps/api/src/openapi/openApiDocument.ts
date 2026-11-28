@@ -12,6 +12,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
         'FlowWave estimates are personal rhythm estimates, not medical assessments or diagnoses.',
     )
     .setVersion(API_VERSION)
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'opaque', description: 'Access token (prefix fwat_) from /v1/auth/login.' })
     .build();
   return SwaggerModule.createDocument(app, config);
 }

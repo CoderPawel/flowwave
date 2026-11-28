@@ -16,6 +16,10 @@ export const TEST_CONFIG: AppConfig = {
   logLevel: 'silent',
   swaggerEnabled: true,
   corsOrigins: [],
+  auth: { accessTokenTtlSeconds: 900, refreshTokenTtlDays: 30, registrationEnabled: true },
+  trustProxyHops: 0,
+  rateLimitEnabled: false,
+  backgroundJobsEnabled: false,
 };
 
 /** Builds the app with selected providers replaced and starts it on a random local port. */

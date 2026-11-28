@@ -78,11 +78,12 @@ VALUES ('44444444-4444-4444-8444-444444444444', '11111111-1111-4111-8111-1111111
        ('55555555-5555-4555-8555-555555555555', '11111111-1111-4111-8111-111111111111', 'apple_health', 'revoked',
         '{}', '2026-11-26', '2026-11-26T11:00:00Z', 'Europe/Budapest', 60);
 
+-- Undeclared scope. Originally 'heart_rate', which decision 0014 declared.
 SELECT pg_temp.expect_failure($sql$
     INSERT INTO consent_decisions (id, user_id, source_id, state, scopes, policy_version,
                                    decided_at_utc, decided_time_zone, decided_utc_offset_minutes)
     VALUES (gen_random_uuid(), '11111111-1111-4111-8111-111111111111', 'apple_health', 'granted',
-            ARRAY['heart_rate'], '2026-11-26', now(), 'UTC', 0)
+            ARRAY['blood_glucose'], '2026-11-26', now(), 'UTC', 0)
 $sql$, '23514');
 
 SELECT pg_temp.expect_failure($sql$

@@ -16,6 +16,19 @@ export interface AppConfig {
   readonly logLevel: LogLevel;
   readonly swaggerEnabled: boolean;
   readonly corsOrigins: readonly string[];
+  readonly auth: AuthConfig;
+  /** Reverse proxies in front of the API whose X-Forwarded-For Express may trust. */
+  readonly trustProxyHops: number;
+  readonly rateLimitEnabled: boolean;
+  /** Export worker and retention job inside the API process (decision 0014). */
+  readonly backgroundJobsEnabled: boolean;
+}
+
+export interface AuthConfig {
+  readonly accessTokenTtlSeconds: number;
+  readonly refreshTokenTtlDays: number;
+  /** Email and password registration; off by default in production (decision 0013). */
+  readonly registrationEnabled: boolean;
 }
 
 const toBoolean = ({ value }: { value: unknown }): unknown => {
@@ -61,6 +74,37 @@ class EnvironmentVariables {
   @Transform(toList)
   @Matches(/^https?:\/\/[^\s/]+$/, { each: true, message: 'CORS_ORIGINS must be a comma-separated list of origins like https://app.example.com' })
   CORS_ORIGINS: string[] = [];
+
+  @Transform(toInteger)
+  @IsInt({ message: 'ACCESS_TOKEN_TTL_SECONDS must be an integer' })
+  @Min(60, { message: 'ACCESS_TOKEN_TTL_SECONDS must be between 60 and 3600' })
+  @Max(3600, { message: 'ACCESS_TOKEN_TTL_SECONDS must be between 60 and 3600' })
+  ACCESS_TOKEN_TTL_SECONDS: number = 900;
+
+  @Transform(toInteger)
+  @IsInt({ message: 'REFRESH_TOKEN_TTL_DAYS must be an integer' })
+  @Min(1, { message: 'REFRESH_TOKEN_TTL_DAYS must be between 1 and 90' })
+  @Max(90, { message: 'REFRESH_TOKEN_TTL_DAYS must be between 1 and 90' })
+  REFRESH_TOKEN_TTL_DAYS: number = 30;
+
+  @Transform(toBoolean)
+  @IsOptional()
+  @IsBoolean({ message: 'AUTH_REGISTRATION_ENABLED must be "true" or "false"' })
+  AUTH_REGISTRATION_ENABLED: boolean | undefined;
+
+  @Transform(toInteger)
+  @IsInt({ message: 'TRUST_PROXY_HOPS must be an integer' })
+  @Min(0, { message: 'TRUST_PROXY_HOPS must be between 0 and 5' })
+  @Max(5, { message: 'TRUST_PROXY_HOPS must be between 0 and 5' })
+  TRUST_PROXY_HOPS: number = 0;
+
+  @Transform(toBoolean)
+  @IsBoolean({ message: 'RATE_LIMIT_ENABLED must be "true" or "false"' })
+  RATE_LIMIT_ENABLED: boolean = true;
+
+  @Transform(toBoolean)
+  @IsBoolean({ message: 'BACKGROUND_JOBS_ENABLED must be "true" or "false"' })
+  BACKGROUND_JOBS_ENABLED: boolean = true;
 }
 
 export class ConfigValidationError extends Error {
@@ -90,5 +134,13 @@ export function loadConfig(env: Readonly<Record<string, string | undefined>>): A
     logLevel: variables.LOG_LEVEL as LogLevel,
     swaggerEnabled: variables.SWAGGER_ENABLED ?? environment !== 'production',
     corsOrigins: variables.CORS_ORIGINS,
+    auth: {
+      accessTokenTtlSeconds: variables.ACCESS_TOKEN_TTL_SECONDS,
+      refreshTokenTtlDays: variables.REFRESH_TOKEN_TTL_DAYS,
+      registrationEnabled: variables.AUTH_REGISTRATION_ENABLED ?? environment !== 'production',
+    },
+    trustProxyHops: variables.TRUST_PROXY_HOPS,
+    rateLimitEnabled: variables.RATE_LIMIT_ENABLED,
+    backgroundJobsEnabled: variables.BACKGROUND_JOBS_ENABLED,
   };
 }
