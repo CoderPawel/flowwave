@@ -2,7 +2,9 @@
 
 Tables and relations of the FlowWave database. Columns are described in the
 [data dictionary](data-dictionary.md); decisions in
-[0012](../architecture/0012-data-model.md).
+[0012](../architecture/0012-data-model.md),
+[0013](../architecture/0013-authentication-and-sessions.md) and
+[0014](../architecture/0014-consent-types-export-and-deletion.md).
 
 Every relation to `users` is `ON DELETE CASCADE`, except `audit_events`
 (`SET NULL`). Relations to `devices` and `health_data_sources` are composite
@@ -14,6 +16,11 @@ the same user. Bookkeeping columns (`created_at_utc`, `updated_at_utc`,
 ```mermaid
 erDiagram
     users ||--o{ devices : "registers"
+    users ||--o| user_credentials : "signs in with"
+    users ||--o{ auth_sessions : "signs in"
+    users ||--o{ data_export_jobs : "requests"
+    devices ||--o| auth_sessions : "is signed in by"
+    auth_sessions ||--o{ auth_tokens : "issues"
     users ||--o{ consent_decisions : "decides"
     users ||--o{ health_data_sources : "connects"
     users ||--o{ check_ins : "records"
@@ -45,10 +52,39 @@ erDiagram
         varchar app_version "nullable"
         timestamptz last_seen_at_utc "nullable"
     }
+    user_credentials {
+        uuid user_id PK
+        varchar email UK
+        text password_hash "Argon2id"
+    }
+    auth_sessions {
+        uuid id PK
+        uuid user_id FK
+        uuid device_id FK "one session per device"
+        timestamptz expires_at_utc
+        timestamptz revoked_at_utc "nullable"
+        session_revocation_reason revoked_reason "nullable"
+    }
+    auth_tokens {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        varchar access_token_hash UK "SHA-256"
+        varchar refresh_token_hash UK "SHA-256"
+        timestamptz rotated_at_utc "nullable"
+    }
+    data_export_jobs {
+        uuid id PK
+        uuid user_id FK
+        export_job_status status
+        jsonb result "nullable, kept 7 days"
+        timestamptz expires_at_utc "nullable"
+    }
     consent_decisions {
         uuid id PK
         uuid user_id FK
-        text source_id
+        consent_type consent_type
+        text source_id "health_data only"
         text state "granted or revoked"
         text_array scopes
         varchar policy_version

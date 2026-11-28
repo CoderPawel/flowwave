@@ -54,20 +54,47 @@ source: generated; feature: storage and offline sync.
 | `is_synthetic` | Low | Seed script | Testing | Collected | Keeps synthetic records out of pilot analysis. |
 | `created_at_utc`, `updated_at_utc` | Low | Generated | Storage | Collected | Bookkeeping. |
 
+### `user_credentials`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `user_id`, `email` | Personal (contact) | User | Sign-in | Collected | Sign-in name. Not written to logs or audit events; no email is ever sent yet. |
+| `password_hash` | Secret | Derived (Argon2id) | Sign-in | Collected | Checks the password without storing it. Never exported, logged, or returned. |
+| `password_updated_at_utc` | Low | Server | Sign-in | Collected | When the password was set. |
+| `created_at_utc`, `updated_at_utc` | Low | Generated | Storage | Collected | Bookkeeping. |
+
+### `auth_sessions`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `id`, `user_id`, `device_id` | Low | Server | Device sessions | Collected | One signed-in device that the user can sign out. |
+| `expires_at_utc`, `last_refreshed_at_utc` | Behavior | Server | Device sessions | Collected | Ends idle sessions; shows when a device was last active. |
+| `revoked_at_utc`, `revoked_reason` | Low | Server | Device sessions, security | Collected | Signed-out sessions stay unusable; reuse detection is visible. |
+| `created_at_utc`, `updated_at_utc` | Low | Generated | Storage | Collected | Bookkeeping. Deleted 30 days after the session ended. |
+
+### `auth_tokens`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `id`, `user_id`, `session_id` | Low | Server | Sign-in | Collected | Links a token pair to its session. |
+| `access_token_hash`, `refresh_token_hash` | Secret (hash) | Derived (SHA-256) | Sign-in | Collected | Recognizes tokens without storing them. Never exported or logged. |
+| `access_expires_at_utc`, `refresh_expires_at_utc`, `rotated_at_utc` | Low | Server | Sign-in, reuse detection | Collected | Short-lived access; single-use refresh tokens. |
+| `created_at_utc` | Low | Generated | Storage | Collected | Bookkeeping; deleted with the session. |
+
 ### `devices`
 
 | Fields | Sensitivity | Source | Feature | Status | Why it is needed |
 | --- | --- | --- | --- | --- | --- |
-| `id`, `user_id`, `platform` | Low | App | Device sessions, sync | Schema only (step 4) | Which installation synchronizes and can be signed out. |
-| `app_version` | Low | App | Sync | Schema only (step 4) | Detects clients that need a newer protocol. |
-| `last_seen_at_utc` | Behavior | Server | Device sessions | Schema only (step 4) | Shows active devices so the user can revoke one. |
-| `created_at_utc`, `updated_at_utc`, `deleted_at_utc` | Low | Generated | Storage | Schema only (step 4) | Bookkeeping; sign-out is a tombstone. |
+| `id`, `user_id`, `platform` | Low | App | Device sessions, sync | Collected | Which installation synchronizes and can be signed out. Created by sign-in. |
+| `app_version` | Low | App | Sync | Collected | Detects clients that need a newer protocol. |
+| `last_seen_at_utc` | Behavior | Server | Device sessions | Collected | Set at sign-in and token refresh; shows active devices so the user can revoke one. |
+| `created_at_utc`, `updated_at_utc`, `deleted_at_utc` | Low | Generated | Storage | Collected | Bookkeeping; sign-out is a tombstone. |
 
 ### `consent_decisions`
 
 | Fields | Sensitivity | Source | Feature | Status | Why it is needed |
 | --- | --- | --- | --- | --- | --- |
-| `id`, `user_id`, `source_id`, `state`, `scopes`, `policy_version` | Low | User | Consent | Collected | Proof of what the user allowed; required to read external sources. |
+| `id`, `user_id`, `consent_type`, `source_id`, `state`, `scopes`, `policy_version` | Low | User | Consent | Collected | Proof of what the user allowed, per consent type; required before collecting health data or device usage. |
 | `decided_at_utc`, `decided_time_zone`, `decided_utc_offset_minutes` | Low | Device | Consent | Collected | When the decision was made, in UTC plus the original zone. |
 | `created_at_utc` | Low | Generated | Storage | Collected | Bookkeeping. |
 
@@ -113,7 +140,7 @@ source: generated; feature: storage and offline sync.
 
 ### `device_usage_buckets`
 
-Requires the device-usage consent (step 4) and the Android usage access
+Requires the `device_usage` consent (checked by the import repository) and the Android usage access
 permission. Package names are mapped to a category on the phone and
 discarded.
 
@@ -217,21 +244,58 @@ discarded.
 
 | Fields | Sensitivity | Source | Feature | Status | Why it is needed |
 | --- | --- | --- | --- | --- | --- |
-| `id`, `user_id`, `action`, `entity_type`, `entity_id` | Low | Server | Accountability | Schema only (step 4) | Proves consent changes, exports and deletions happened. |
-| `metadata` | Low (no health values) | Server | Accountability | Schema only (step 4) | Non-health context, e.g. the consent policy version. |
-| `occurred_at_utc`, `created_at_utc` | Low | Server | Accountability | Schema only (step 4) | When it happened. |
+| `id`, `user_id`, `action`, `entity_type`, `entity_id` | Low | Server | Accountability, security | Collected | Proves sign-ins, sign-outs, consent changes, exports and deletions happened. |
+| `metadata` | Low (no health values) | Server | Accountability | Collected | Non-health context, e.g. the consent policy version. Never tokens, passwords, emails, or IP addresses. |
+| `occurred_at_utc`, `created_at_utc` | Low | Server | Accountability | Collected | When it happened. |
+
+### `data_export_jobs`
+
+| Fields | Sensitivity | Source | Feature | Status | Why it is needed |
+| --- | --- | --- | --- | --- | --- |
+| `id`, `user_id`, `status`, `requested_at_utc`, `started_at_utc`, `completed_at_utc`, `expires_at_utc`, `failure_code` | Low | Server | Data export | Collected | Tracks the export the user asked for. |
+| `result`, `result_bytes` | Health (copy of all account data) | Server | Data export | Collected | The export file. Removed 7 days after completion; the job row after 30 days. |
+| `created_at_utc`, `updated_at_utc` | Low | Generated | Storage | Collected | Bookkeeping. |
+
+## Consent types
+
+Decision [0014](../architecture/0014-consent-types-export-and-deletion.md):
+
+| Consent type | Covers | Stores data |
+| --- | --- | --- |
+| `health_data` | One external source (`health_connect`, `apple_health`) with scopes `sleep_duration`, `steps`, `heart_rate`, `resting_heart_rate` | Imported health records |
+| `device_usage` | Usage aggregates from the phone | `device_usage_buckets` |
+| `notifications` | Reminders and suggestions as notifications | Nothing |
+| `analytics` | Product analytics (none is collected yet) | Nothing |
+
+The import repositories refuse new data the moment the matching consent is
+missing, withdrawn, or granted under an older consent text. Withdrawing can
+also delete the data already collected for that type.
+
+## Held in memory only
+
+The rate limiter keeps a counter per client IP address and per hashed email
+for at most one limit window (decision 0013). IP addresses are not written to
+the database, audit events, or logs.
 
 ## Declared external sources (not yet integrated)
 
 | Source | Scopes FlowWave may request | Status |
 | --- | --- | --- |
-| Apple Health | `sleep_duration` | Declared only; no adapter exists, nothing is collected. |
-| Health Connect | `sleep_duration` | Declared only; no adapter exists, nothing is collected. Step 8 adds the scopes for steps, heart rate, sleep sessions and exercise. |
+| Apple Health | `sleep_duration`, `steps`, `heart_rate`, `resting_heart_rate` | Declared only; no adapter exists, nothing is collected. |
+| Health Connect | `sleep_duration`, `steps`, `heart_rate`, `resting_heart_rate` | Declared only; no adapter exists, nothing is collected. Step 8 adds the adapter and any further scopes (exercise). |
 
 ## Deletion
 
 Deleting a user row cascades to every table that has a `user_id`, except
 `audit_events`, where `user_id` becomes NULL and the event stays without
 personal data. Covered by `db/tests/01_ported_constraints.test.sql` and
-`db/tests/02_data_model.test.sql`. Soft-deleted rows (`deleted_at_utc`) are
-tombstones for synchronization; purging them is part of step 4.
+`db/tests/02_data_model.test.sql`.
+
+`DELETE /v1/account` (current password required) deletes the user row in one
+transaction and returns the ID of the `account_deleted` audit event as a
+receipt. There is no grace period. Covered by `apps/api/test/account.test.ts`.
+
+An hourly retention job removes ended sessions after 30 days, export files
+after 7 days, export jobs after 30 days, and tombstones (`deleted_at_utc`) of
+records and events after 90 days. Devices and data sources are kept while the
+account exists, because records refer to them.

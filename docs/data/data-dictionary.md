@@ -4,7 +4,10 @@ Every table and column in the FlowWave database, with type, unit and meaning.
 Source of truth: [`apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma)
 and the CHECK constraints in
 [`apps/api/prisma/migrations`](../../apps/api/prisma/migrations). Design
-decisions: [0012](../architecture/0012-data-model.md). Relations:
+decisions: [0012](../architecture/0012-data-model.md),
+[0013](../architecture/0013-authentication-and-sessions.md) (accounts and
+sessions), [0014](../architecture/0014-consent-types-export-and-deletion.md)
+(consent types, export, deletion). Relations:
 [ER diagram](er-diagram.md). Why each field is collected and how sensitive it
 is: [data inventory](../privacy/data-inventory.md).
 
@@ -50,7 +53,10 @@ missing here.
 | `rhythm_state` | `ready`, `flow`, `recovery`, `overdrive` |
 | `recommendation_kind` | `focus_block`, `break`, `wind_down`, `meal_timing`, `movement`, `caffeine_timing` |
 | `recommendation_status` | `active`, `accepted`, `dismissed`, `expired` |
-| `audit_action` | `account_created`, `account_deleted`, `consent_recorded`, `device_registered`, `device_revoked`, `data_exported`, `data_deleted` |
+| `audit_action` | `account_created`, `account_deleted`, `consent_recorded`, `device_registered`, `device_revoked`, `data_exported`, `data_deleted`, `login_succeeded`, `login_failed`, `logged_out`, `logged_out_all`, `session_revoked`, `refresh_token_reused`, `data_export_requested` |
+| `consent_type` | `health_data`, `device_usage`, `notifications`, `analytics` |
+| `session_revocation_reason` | `logout`, `logout_all`, `revoked_by_user`, `refresh_token_reused` |
+| `export_job_status` | `pending`, `running`, `completed`, `failed`, `expired` |
 
 ## `users` (User)
 
@@ -65,6 +71,55 @@ missing here.
 
 Deleting a user deletes every row below that has its `user_id` (cascade),
 except `audit_events`, where `user_id` becomes NULL.
+
+## `user_credentials` (UserCredential)
+
+Email and password sign-in (development authentication, decision 0013). One
+row per user; accounts without a password (future sign-in methods) have none.
+
+| Column | Type | Null | Unit / values | Description |
+| --- | --- | --- | --- | --- |
+| `user_id` | uuid | no | | Account (primary key). |
+| `email` | varchar(254) | no | lower-case, trimmed | Sign-in name; unique. Never written to logs or audit events. |
+| `password_hash` | text | no | Argon2id PHC string | `$argon2id$v=19$m=…,t=…,p=…$salt$hash`. Never exported, logged, or returned. |
+| `password_updated_at_utc` | timestamptz | no | UTC | Password last set (not changed by a rehash). |
+| `created_at_utc` | timestamptz | no | UTC | Row created. |
+| `updated_at_utc` | timestamptz | no | UTC | Row last changed. |
+
+## `auth_sessions` (AuthSession)
+
+One signed-in device. Created by sign-in together with a `devices` row.
+
+| Column | Type | Null | Unit / values | Description |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | | Session identifier. |
+| `user_id` | uuid | no | | Owner. |
+| `device_id` | uuid | no | | Device signed in by this session; same user; one session per device. |
+| `expires_at_utc` | timestamptz | no | UTC, after `created_at_utc` | End of the newest refresh token; moves forward on every refresh. |
+| `last_refreshed_at_utc` | timestamptz | yes | UTC | Last token refresh; NULL until the first one. |
+| `revoked_at_utc` | timestamptz | yes | UTC | Signed out; set together with `revoked_reason`. |
+| `revoked_reason` | session_revocation_reason | yes | enum | Why the session ended. |
+| `created_at_utc` | timestamptz | no | UTC | Signed in. |
+| `updated_at_utc` | timestamptz | no | UTC | Row last changed. |
+
+Deleted 30 days after it was revoked or expired (retention, decision 0014).
+
+## `auth_tokens` (AuthToken)
+
+One access token and one refresh token, issued together. Only SHA-256 hashes
+are stored; a trigger allows no change except setting `rotated_at_utc` once.
+
+| Column | Type | Null | Unit / values | Description |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | | Token pair identifier. |
+| `user_id` | uuid | no | | Owner. |
+| `session_id` | uuid | no | | Session; same user. |
+| `access_token_hash` | varchar(64) | no | lower-case hex | SHA-256 of the access token; unique. |
+| `access_expires_at_utc` | timestamptz | no | UTC | Access token expiry (15 minutes by default). |
+| `refresh_token_hash` | varchar(64) | no | lower-case hex | SHA-256 of the refresh token; unique. |
+| `refresh_expires_at_utc` | timestamptz | no | UTC, ≥ access expiry | Refresh token expiry (30 days by default). |
+| `rotated_at_utc` | timestamptz | yes | UTC | The refresh token was used; presenting it again revokes the session. |
+| `created_at_utc` | timestamptz | no | UTC | Issued. |
 
 ## `devices` (Device)
 
@@ -83,15 +138,17 @@ No hardware identifiers (IMEI, serial number, advertising ID) are stored.
 
 ## `consent_decisions` (Consent)
 
-Append-only: a revocation is a new row; UPDATE is rejected by a trigger.
+Append-only: a withdrawal is a new row; UPDATE is rejected by a trigger. The
+ID is generated on the device, so repeating a decision is safe.
 
 | Column | Type | Null | Unit / values | Description |
 | --- | --- | --- | --- | --- |
 | `id` | uuid | no | | Decision identifier. |
 | `user_id` | uuid | no | | Who decided. |
-| `source_id` | text | no | `apple_health`, `health_connect` | External source the decision is about. |
+| `consent_type` | consent_type | no | enum | What the decision is about (decision 0014). |
+| `source_id` | text | yes | `apple_health`, `health_connect` | External source; set exactly when `consent_type` is `health_data`. |
 | `state` | text | no | `granted`, `revoked` | The decision. |
-| `scopes` | text[] | no (CHECK) | currently only `sleep_duration` | Granted scopes; empty for a revocation. |
+| `scopes` | text[] | no (CHECK) | `sleep_duration`, `steps`, `heart_rate`, `resting_heart_rate` | Granted health data categories; empty for a withdrawal and for other types. |
 | `policy_version` | varchar(32) | no | | Consent text version the user saw. |
 | `decided_at_utc` | timestamptz | no | UTC | When the user decided. |
 | `decided_time_zone` | varchar(64) | no | IANA zone | Zone at decision time. |
@@ -409,6 +466,28 @@ Unique per user, day, score type and calculation version.
 | `result` | jsonb | no | | Result returned on replay (not the payload). |
 | `applied_at_utc` | timestamptz | no | UTC | When applied. |
 
+## `data_export_jobs` (DataExportJob)
+
+Account data exports (decision 0014). A CHECK keeps the columns consistent
+with `status`.
+
+| Column | Type | Null | Unit / values | Description |
+| --- | --- | --- | --- | --- |
+| `id` | uuid | no | | Job identifier. |
+| `user_id` | uuid | no | | Whose data is exported. |
+| `status` | export_job_status | no | enum | `pending` → `running` → `completed` or `failed`; `completed` → `expired`. |
+| `requested_at_utc` | timestamptz | no | UTC | Requested. |
+| `started_at_utc` | timestamptz | yes | UTC | Claimed by the worker. |
+| `completed_at_utc` | timestamptz | yes | UTC | Finished or failed. |
+| `expires_at_utc` | timestamptz | yes | UTC | The file is removed after this (7 days). |
+| `failure_code` | varchar(63) | yes | lowercase identifier | `export_failed` or `export_interrupted`; never an error message. |
+| `result` | jsonb | yes | object | The export file while `completed`; contains health data. |
+| `result_bytes` | integer | yes | bytes, ≥ 0 | Size of the file. |
+| `created_at_utc` | timestamptz | no | UTC | Row created. |
+| `updated_at_utc` | timestamptz | no | UTC | Row last changed. |
+
+Jobs are deleted 30 days after they were requested.
+
 ## `audit_events` (AuditEvent)
 
 Append-only; never contains health values.
@@ -420,6 +499,6 @@ Append-only; never contains health values.
 | `action` | audit_action | no | enum | What happened. |
 | `entity_type` | varchar(63) | yes | lowercase identifier | Affected entity type; set together with `entity_id`. |
 | `entity_id` | uuid | yes | | Affected entity. |
-| `metadata` | jsonb | no | object, ≤ 2 KB | Non-health context, e.g. consent policy version. |
+| `metadata` | jsonb | no | object, ≤ 2 KB | Non-health context, e.g. consent policy version. Never tokens, passwords, emails, or IP addresses. |
 | `occurred_at_utc` | timestamptz | no | UTC | When it happened (server time). |
 | `created_at_utc` | timestamptz | no | UTC | Row stored. |
