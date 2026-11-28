@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { assertNoForbiddenFields, isMissingReason, ValidationError, type MissingReason, type ZonedTimestamp } from '@flowwave/core';
 import type { HealthMetric, MeasurementUnit } from '../../generated/prisma/enums.js';
+import { ConsentService } from '../consent/consentService.js';
 import { PrismaService } from '../prisma/prismaService.js';
 import { importIdempotently, type ImportResult } from './idempotentImport.js';
 import { requireActiveDataSource, requireUuid } from './ownership.js';
@@ -10,6 +11,13 @@ export const UNIT_BY_METRIC: Readonly<Record<HealthMetric, MeasurementUnit>> = {
   steps: 'count',
   heart_rate: 'beats_per_minute',
   resting_heart_rate: 'beats_per_minute',
+};
+
+/** Consent scope each metric is imported under (decision 0014). */
+export const CONSENT_SCOPE_BY_METRIC: Readonly<Record<HealthMetric, string>> = {
+  steps: 'steps',
+  heart_rate: 'heart_rate',
+  resting_heart_rate: 'resting_heart_rate',
 };
 
 export type HealthSampleValue =
@@ -38,7 +46,10 @@ export interface HealthSampleImport {
 
 @Injectable()
 export class HealthSampleRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly consents: ConsentService,
+  ) {}
 
   /** Imports one aggregated sample. Repeating the same import changes nothing. */
   async importSample(userId: string, sample: HealthSampleImport): Promise<ImportResult> {
@@ -47,7 +58,8 @@ export class HealthSampleRepository {
     if (!Object.hasOwn(UNIT_BY_METRIC, sample.metric)) {
       throw new ValidationError('metric', 'Unknown health metric.');
     }
-    await requireActiveDataSource(this.prisma, userId, sample.dataSourceId);
+    const sourceKind = await requireActiveDataSource(this.prisma, userId, sample.dataSourceId);
+    await this.consents.assertHealthDataConsent(userId, sourceKind, CONSENT_SCOPE_BY_METRIC[sample.metric]);
 
     const start = zonedColumns('start', sample.start);
     const end = zonedColumns('end', sample.end);

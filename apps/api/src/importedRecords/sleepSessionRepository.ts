@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { assertNoForbiddenFields, isMissingReason, ValidationError, type MissingReason, type ZonedTimestamp } from '@flowwave/core';
+import { ConsentService } from '../consent/consentService.js';
 import { PrismaService } from '../prisma/prismaService.js';
 import { importIdempotently, type ImportResult } from './idempotentImport.js';
 import { requireActiveDataSource, requireUuid } from './ownership.js';
@@ -28,12 +29,16 @@ export interface SleepSessionImport {
 
 @Injectable()
 export class SleepSessionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly consents: ConsentService,
+  ) {}
 
   async importSession(userId: string, session: SleepSessionImport): Promise<ImportResult> {
     assertNoForbiddenFields(session);
     requireUuid('userId', userId);
-    await requireActiveDataSource(this.prisma, userId, session.dataSourceId);
+    const sourceKind = await requireActiveDataSource(this.prisma, userId, session.dataSourceId);
+    await this.consents.assertHealthDataConsent(userId, sourceKind, 'sleep_duration');
 
     const start = zonedColumns('start', session.start);
     const end = zonedColumns('end', session.end);

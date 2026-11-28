@@ -31,6 +31,12 @@ export function translateDatabaseError(error: unknown): unknown {
   return error;
 }
 
+/** True for a unique constraint violation, whether reported by Prisma (P2002) or by the driver adapter (23505). */
+export function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  return (error as { code?: unknown }).code === 'P2002' || driverCause(error)?.originalCode === '23505';
+}
+
 export async function withDatabaseErrors<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();

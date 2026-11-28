@@ -3,11 +3,15 @@ import { randomUUID } from 'node:crypto';
 import { after, before, describe, it } from 'node:test';
 import {
   createZonedTimestamp,
+  CURRENT_CONSENT_POLICY_VERSIONS,
   ForbiddenDataError,
   IdempotencyConflictError,
   ValidationError,
   type ZonedTimestamp,
 } from '@flowwave/core';
+import { AuditService } from '../src/audit/auditService.js';
+import { systemClock } from '../src/common/clock.js';
+import { ConsentService } from '../src/consent/consentService.js';
 import { DeviceUsageBucketRepository, type DeviceUsageBucketImport } from '../src/importedRecords/deviceUsageBucketRepository.js';
 import { HealthSampleRepository, type HealthSampleImport } from '../src/importedRecords/healthSampleRepository.js';
 import { decideExistingImport, sameColumnValues } from '../src/importedRecords/idempotentImport.js';
@@ -93,9 +97,10 @@ describe('idempotent imports against PostgreSQL', { skip: !databaseUrl }, () => 
 
   before(async () => {
     prisma = new PrismaService({ ...TEST_CONFIG, databaseUrl: databaseUrl! });
-    samples = new HealthSampleRepository(prisma);
-    sleep = new SleepSessionRepository(prisma);
-    usage = new DeviceUsageBucketRepository(prisma);
+    const consents = new ConsentService(prisma, new AuditService(prisma), systemClock);
+    samples = new HealthSampleRepository(prisma, consents);
+    sleep = new SleepSessionRepository(prisma, consents);
+    usage = new DeviceUsageBucketRepository(prisma, consents);
     await prisma.user.createMany({
       data: [
         { id: userA, homeTimeZone: 'Europe/Budapest', isSynthetic: true },
@@ -109,6 +114,14 @@ describe('idempotent imports against PostgreSQL', { skip: !databaseUrl }, () => 
       ],
     });
     await prisma.device.create({ data: { id: deviceA, userId: userA, platform: 'android' } });
+    await consents.record(userA, {
+      id: randomUUID(),
+      type: 'device_usage',
+      state: 'granted',
+      scopes: [],
+      policyVersion: CURRENT_CONSENT_POLICY_VERSIONS.device_usage,
+      decidedAt: at('2026-11-26T06:00:00Z'),
+    });
   });
 
   after(async () => {
