@@ -1,16 +1,21 @@
-import 'package:flowwave_mobile/src/app.dart';
-import 'package:flowwave_mobile/src/home/home_screen.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-void main() {
-  testWidgets(
-    'home screen shows the app title and the non-medical disclaimer',
-    (tester) async {
-      await tester.pumpWidget(const FlowWaveApp());
+import 'support/test_app.dart';
 
-      expect(find.text('FlowWave'), findsOneWidget);
-      expect(find.text('Your energy and focus rhythm'), findsOneWidget);
-      expect(find.text(HomeScreen.disclaimer), findsOneWidget);
-    },
-  );
+void main() {
+  testWidgets('a returning user lands on Today with the non-medical '
+      'disclaimer', (tester) async {
+    final app = TestApp();
+    await app.completeOnboarding();
+    await app.pump(tester);
+
+    expect(find.text('Today'), findsWidgets);
+    expect(
+      find.text(
+        'FlowWave shows personal rhythm estimates based on the data you '
+        'choose to share. They are not medical assessments or diagnoses.',
+      ),
+      findsOneWidget,
+    );
+  });
 }
