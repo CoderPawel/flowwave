@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Verifies the Prisma migrations in apps/api/prisma/migrations:
-#   1. reverts anything left from a previous run (every down.sql, newest first),
+#   1. reverts migrations applied by a previous run (their down.sql, newest first),
 #   2. applies all migrations with `prisma migrate deploy`,
 #   3. checks that the database matches schema.prisma (no drift),
 #   4. runs the SQL constraint tests in db/tests,
 #   5. reverts everything with the down.sql files and checks nothing is left,
-#   6. applies the migrations again, leaving a migrated database behind.
-# Requires psql, `npm ci`, and DATABASE_URL pointing at a disposable database.
+#   6. applies each migration with psql and checks that its down.sql restores
+#      exactly the schema from before it (compared with pg_dump),
+#   7. applies the migrations again, leaving a migrated database behind.
+# Requires psql, pg_dump, `npm ci`, and DATABASE_URL pointing at a disposable database.
 set -euo pipefail
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
@@ -23,10 +25,15 @@ prisma() {
 }
 
 revert_all() {
-  for file in $(ls "$MIGRATIONS_DIR"/*/down.sql | sort -r); do
-    echo "revert $file"
-    "${PSQL[@]}" -f "$file"
-  done
+  local tracked
+  tracked=$("${PSQL[@]}" -tA -c "SELECT to_regclass('_prisma_migrations') IS NOT NULL")
+  if [[ "$tracked" == "t" ]]; then
+    for name in $("${PSQL[@]}" -tA -c "SELECT migration_name FROM _prisma_migrations
+        WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name DESC"); do
+      echo "revert $name"
+      "${PSQL[@]}" -f "$MIGRATIONS_DIR/$name/down.sql"
+    done
+  fi
   "${PSQL[@]}" -c 'DROP TABLE IF EXISTS "_prisma_migrations"'
 }
 
@@ -64,6 +71,26 @@ if [[ "$leftovers" != "0" ]]; then
   echo "down.sql left $leftovers table(s), enum type(s) or function(s) behind." >&2
   exit 1
 fi
+
+schema_dump() {
+  pg_dump --schema-only --no-owner --no-privileges "$DATABASE_URL" | grep -v -E '^\\(un)?restrict '
+}
+
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+migrations=($(ls -d "$MIGRATIONS_DIR"/*/ | sort))
+for index in "${!migrations[@]}"; do
+  schema_dump > "$workdir/before_$index.sql"
+  "${PSQL[@]}" --single-transaction -f "${migrations[$index]}migration.sql"
+done
+for (( index=${#migrations[@]}-1; index>=0; index-- )); do
+  "${PSQL[@]}" -f "${migrations[$index]}down.sql"
+  echo "check  ${migrations[$index]}down.sql restores the previous schema"
+  if ! schema_dump | diff -u "$workdir/before_$index.sql" - ; then
+    echo "${migrations[$index]}down.sql does not restore the schema from before the migration." >&2
+    exit 1
+  fi
+done
 
 prisma migrate deploy
 echo "Migrations verified."
