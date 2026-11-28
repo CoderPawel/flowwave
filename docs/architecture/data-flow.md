@@ -139,9 +139,18 @@ flowchart LR
   and rejects reused IDs with a different payload.
 - Deleting an entry creates a tombstone that syncs like any other change.
 - Turning sync off keeps local data and stops uploads. Deleting the account
-  deletes all server data for that user (cascade, covered by SQL tests).
-- Export produces a file with all of the user's data in a documented JSON
-  format, generated on the device.
+  (`DELETE /v1/account`, current password required) deletes all server data
+  for that user in one transaction and returns a deletion receipt
+  ([0014](0014-consent-types-export-and-deletion.md)).
+- The server export (`POST /v1/account/exports`) is a background job that
+  writes all server data of the user as JSON (format
+  `flowwave-account-export`, version 1, keyed by table and column names, no
+  password or token hashes) and keeps it for 7 days. Data that exists only on
+  the phone gets its own export with the local database in later steps.
+- Withdrawing consent stops server imports of that data at once; the user can
+  also have the data collected under it deleted.
+- Signing out deletes the tokens and all registered local account data on the
+  phone ([0013](0013-authentication-and-sessions.md)).
 
 ## Time handling
 

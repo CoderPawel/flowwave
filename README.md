@@ -82,8 +82,32 @@ npm run dev:api              # API on http://localhost:3000 (Swagger UI at /docs
 npm run dev:web              # web panel on http://localhost:3001
 ```
 
-API endpoints are versioned under `/v1`: `GET /v1/health` (liveness) and
-`GET /v1/health/ready` (database readiness, `503` when the database is down).
+API endpoints are versioned under `/v1` and listed in Swagger UI and
+[`packages/contracts/openapi.json`](packages/contracts/openapi.json):
+
+- `GET /v1/health`, `GET /v1/health/ready`: liveness and database readiness
+  (`503` when the database is down); the only routes without a token.
+- `/v1/auth/*`: register, sign in, refresh, sign out (one device or all), list
+  and revoke sessions ([0013](docs/architecture/0013-authentication-and-sessions.md)).
+- `/v1/consents`: consent status, history, and decisions for health data,
+  device usage, notifications, and analytics.
+- `/v1/account`: the account, deletion (password required), and data export
+  jobs ([0014](docs/architecture/0014-consent-types-export-and-deletion.md)).
+
+Try it locally (registration is on by default outside production):
+
+```bash
+curl -s localhost:3000/v1/auth/register -H 'content-type: application/json' \
+  -d '{"email":"me@example.org","password":"a long password","homeTimeZone":"Europe/Budapest","device":{"platform":"web"}}'
+curl -s localhost:3000/v1/account -H "authorization: Bearer <accessToken from the response>"
+```
+
+Authentication settings in `apps/api/.env` (see `.env.example`):
+`ACCESS_TOKEN_TTL_SECONDS` (default 900), `REFRESH_TOKEN_TTL_DAYS` (30),
+`AUTH_REGISTRATION_ENABLED` (off in production unless set), `TRUST_PROXY_HOPS`
+(reverse proxies in front of the API, for client IPs in rate limits),
+`RATE_LIMIT_ENABLED` and `BACKGROUND_JOBS_ENABLED` (both on; tests turn them
+off).
 
 Tests that need a real database and the migration check use a disposable
 database (Docker Compose creates `flowwave_test` on first start):
@@ -120,6 +144,9 @@ flutter pub get
 flutter analyze
 flutter test
 flutter build apk --debug
+
+# Point a debug build at a local API (Android emulator):
+flutter run --dart-define=FLOWWAVE_API_BASE_URL=http://10.0.2.2:3000/
 ```
 
 ## Key behaviors
@@ -128,8 +155,13 @@ flutter build apk --debug
   that moment. Timestamps without an offset are rejected.
 - **Missing data** is a value with a reason (`user_skipped`, `no_consent`, ...).
   The estimate leaves missing inputs out and says which ones were missing.
-- **Consent** is required, per source and scope, before reading any external
-  source, and is invalidated when the consent policy version changes.
+- **Consent** is separate for health data (per source and scope), device
+  usage, notifications, and analytics. It is required before collecting that
+  data, is invalidated when its consent text version changes, and can be
+  withdrawn at any time, optionally deleting the data collected under it.
+- **Accounts** use email and password (Argon2id) with short-lived access tokens
+  and single-use refresh tokens; reusing a refresh token signs that device out.
+  Account deletion removes all server data at once.
 - **Sync** operations carry a client-generated ID. Repeating an operation
   returns the stored result; reusing an ID for a different change is rejected.
 - **Recommendations** always include an explanation built from the inputs and a

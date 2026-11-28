@@ -161,7 +161,6 @@ export class DataExportService {
     if (job.status !== 'completed' || job.result === null || typeof job.result !== 'object' || Array.isArray(job.result)) {
       throw new ConflictError('status', 'This export is not ready yet.');
     }
-    await this.audit.record({ userId, action: 'data_exported', entity: { type: 'data_export_job', id: job.id } });
     return job.result;
   }
 
@@ -221,15 +220,20 @@ export class DataExportService {
     try {
       const result = await this.build(userId);
       const now = this.clock.now();
-      await this.prisma.dataExportJob.updateMany({
-        where: { id: jobId, status: 'running' },
-        data: {
-          status: 'completed',
-          result,
-          resultBytes: Buffer.byteLength(JSON.stringify(result)),
-          completedAtUtc: now,
-          expiresAtUtc: addDays(now, EXPORT_RETENTION_DAYS),
-        },
+      await this.prisma.$transaction(async (tx) => {
+        const completed = await tx.dataExportJob.updateMany({
+          where: { id: jobId, status: 'running' },
+          data: {
+            status: 'completed',
+            result,
+            resultBytes: Buffer.byteLength(JSON.stringify(result)),
+            completedAtUtc: now,
+            expiresAtUtc: addDays(now, EXPORT_RETENTION_DAYS),
+          },
+        });
+        if (completed.count === 1) {
+          await this.audit.record({ userId, action: 'data_exported', entity: { type: 'data_export_job', id: jobId } }, tx);
+        }
       });
     } catch (error) {
       // Only the error class is logged: messages from the database can contain row values.

@@ -8,7 +8,7 @@ import { DeviceUsageBucketRepository } from '../src/importedRecords/deviceUsageB
 import { HealthSampleRepository } from '../src/importedRecords/healthSampleRepository.js';
 import { RetentionService } from '../src/maintenance/retentionService.js';
 import { PrismaService } from '../src/prisma/prismaService.js';
-import { apiClient, TEST_PASSWORD } from './support/apiClient.js';
+import { apiClient, TEST_PASSWORD, type TokenPair } from './support/apiClient.js';
 import { startTestApp, TEST_CONFIG } from './support/testApp.js';
 
 const databaseUrl = process.env['FLOWWAVE_TEST_DATABASE_URL'];
@@ -52,9 +52,9 @@ describe('account export and deletion against PostgreSQL', { skip: !databaseUrl 
   }
 
   /** Gives the user a little of everything: consent, a usage bucket, and a step count. */
-  async function addData(userId: string, deviceId: string) {
+  async function addData({ userId, deviceId, accessToken }: TokenPair) {
     await api.call('POST', '/v1/consents', {
-      token: (await api.login((await prisma.userCredential.findUniqueOrThrow({ where: { userId } })).email)).body['accessToken'] as string,
+      token: accessToken,
       body: {
         id: randomUUID(),
         type: 'device_usage',
@@ -125,8 +125,8 @@ describe('account export and deletion against PostgreSQL', { skip: !databaseUrl 
   it('contains the user\'s rows, no secrets, and nothing of other users', async () => {
     const { tokens, email } = await user();
     const { tokens: other } = await user();
-    await addData(tokens.userId, tokens.deviceId);
-    await addData(other.userId, other.deviceId);
+    await addData(tokens);
+    await addData(other);
 
     const job = await api.call<ExportJob>('POST', '/v1/account/exports', { token: tokens.accessToken });
     while ((await exports.processPending()) > 0);
@@ -144,7 +144,7 @@ describe('account export and deletion against PostgreSQL', { skip: !databaseUrl 
     assert.equal(file.tables['health_samples']?.[0]?.['value'], 4321);
     assert.equal(file.tables['device_usage_buckets']?.[0]?.['missing_reason'], 'source_unavailable');
     assert.ok(file.tables['consent_decisions']?.some((row) => row['consent_type'] === 'device_usage'));
-    assert.equal(file.tables['auth_sessions']?.length, 2, 'registration and the extra sign-in');
+    assert.deepEqual(file.tables['auth_sessions']?.map((row) => row['id']), [tokens.sessionId]);
 
     for (const [table, rows] of Object.entries(file.tables)) {
       for (const row of rows) {
@@ -207,7 +207,7 @@ describe('account export and deletion against PostgreSQL', { skip: !databaseUrl 
         revokedReason: 'logout',
       },
     });
-    await addData(tokens.userId, tokens.deviceId);
+    await addData(tokens);
     const sample = await prisma.healthSample.findFirstOrThrow({ where: { userId: tokens.userId } });
     await prisma.healthSample.update({ where: { id: sample.id }, data: { deletedAtUtc: new Date(Date.now() - 91 * DAY_MS) } });
 
@@ -221,7 +221,7 @@ describe('account export and deletion against PostgreSQL', { skip: !databaseUrl 
 
   it('deletes the account only with the password, leaving no row with its ID', async () => {
     const { tokens } = await user();
-    await addData(tokens.userId, tokens.deviceId);
+    await addData(tokens);
     await api.call('POST', '/v1/account/exports', { token: tokens.accessToken });
 
     const wrong = await api.call('DELETE', '/v1/account', { token: tokens.accessToken, body: { password: 'not my password' } });

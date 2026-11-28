@@ -28,10 +28,11 @@ These rules apply to every change, whether written by a person or an agent.
 | --- | --- |
 | 1, 2, 10 | `packages/core/src/scoring` returns a disclaimer and a per-factor explanation with every score. |
 | 4, 5 | `packages/core/src/privacy` rejects payloads containing forbidden fields; `docs/privacy/data-inventory.md` lists every collected field. |
-| 6 | `packages/core/src/consent` requires an active, append-only consent decision per external source and scope. |
+| 6 | `packages/core/src/consent` requires an active, append-only consent decision per consent type (health data per external source and scope, device usage, notifications, analytics); `apps/api/src/importedRecords` checks it through `ConsentService` before every import. |
 | 7 | `packages/core/src/sync` replays results for repeated operation IDs and rejects reused IDs with different payloads. |
 | 9 | `packages/core/src/time` stores UTC instant + IANA time zone + offset; naive local timestamps are rejected. |
 | 11, 12 | `packages/core/src/data` models every input as `present` or `missing` with a reason; scoring never imputes values. |
+| 3 (accounts) | `apps/api/src/auth` stores only Argon2id password hashes and SHA-256 token hashes; audit metadata passes the privacy guard; `apps/mobile/lib/src/auth` keeps tokens in native secure storage and deletes local account data at sign-out. |
 | 3, 5, 7, 9, 10, 12 (database) | CHECK constraints in `apps/api/prisma/migrations` (valid zones, present-or-missing, explanations with a disclaimer, per-user foreign keys) and unique import keys used by `apps/api/src/importedRecords`; `db/tests` covers them and fails on a column with a forbidden name. |
 
 ## Conventions
